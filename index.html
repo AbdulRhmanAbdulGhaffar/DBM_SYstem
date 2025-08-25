@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم احترافية لإدارة البيانات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* General Styles and Variables */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root {
+            --bg-color: #f7f8fa; --sidebar-bg: #ffffff; --card-bg: #ffffff;
+            --text-color: #1f2937; --text-muted-color: #6b7280; --input-bg: #ffffff;
+            --border-color: #e5e7eb; --primary-color: #3b82f6; --primary-hover: #2563eb;
+            --primary-light: #eff6ff; --danger-color: #ef4444; --danger-hover: #dc2626;
+            --success-color: #10b981; --warning-color: #f59e0b;
+        }
+        .dark {
+            --bg-color: #111827; --sidebar-bg: #1f2937; --card-bg: #1f2937;
+            --text-color: #f9fafb; --text-muted-color: #d1d5db; --input-bg: #374151;
+            --border-color: #374151; --primary-light: #1e3a8a;
+        }
+        body { font-family: 'Cairo', sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); }
+        .form-input { background-color: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); width: 100%; padding: 10px 14px; border-radius: 8px; outline: none; transition: all 0.2s ease; }
+        .form-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        .form-input.is-invalid { border-color: var(--danger-color) !important; }
+        .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; }
+        .btn:disabled { cursor: not-allowed; opacity: 0.7; }
+        .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }
+        .btn-primary { background-color: var(--primary-color); color: white; border: none; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: transparent; color: var(--text-color); border: 1px solid var(--border-color); }
+        .btn-secondary:hover:not(:disabled) { background-color: var(--bg-color); }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-danger:hover:not(:disabled) { background-color: var(--danger-hover); }
+        .btn-warning { background-color: var(--warning-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-icon { padding: 8px; }
+        th { background-color: #f9fafb; }
+        .dark th { background-color: #374151; }
+        tbody tr:hover { background-color: var(--primary-light); }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
+        .modal-content { background-color: var(--card-bg); margin: 5% auto; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+        .close-btn { color: var(--text-muted-color); float: left; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: var(--text-color); }
+        #toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 2000; }
+        .toast { margin-top: 10px; padding: 16px 24px; border-radius: 8px; color: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); opacity: 0; transform: translateY(20px); animation: toast-in 0.5s forwards; }
+        .toast.success { background-color: var(--success-color); }
+        .toast.error { background-color: var(--danger-color); }
+        @keyframes toast-in { to { opacity: 1; transform: translateY(0); } }
+        #import-progress-container { display: none; margin-top: 1rem; }
+        #import-progress-bar { width: 0%; transition: width 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .kpi-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .sortable .sort-icon { opacity: 0.5; transition: opacity 0.2s; }
+        .sortable:hover .sort-icon { opacity: 1; }
+        .sortable.sorted .sort-icon { opacity: 1; color: var(--primary-color); }
+        .nav-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 0.5rem; transition: all 0.2s ease; }
+        .nav-link:hover { background-color: var(--bg-color); }
+        .nav-link.active { background-color: var(--primary-light); color: var(--primary-color); font-weight: 700; }
+        #sidebar { transition: margin-right 0.3s ease-in-out, margin-left 0.3s ease-in-out; }
+        #main-content { transition: margin-right 0.3s ease-in-out, margin-left 0.3s ease-in-out; }
+        html[dir="rtl"] #sidebar.collapsed { margin-right: -16rem; }
+        html[dir="rtl"] #main-content.sidebar-collapsed { margin-right: 0; }
+        html[dir="ltr"] #sidebar.collapsed { margin-left: -16rem; }
+        html[dir="ltr"] #main-content.sidebar-collapsed { margin-left: 0; }
+        #sidebar.collapsed .sidebar-title, #sidebar.collapsed .nav-link span { opacity: 0; }
+        #sidebar-expand-btn { display: none; }
+        #sidebar.collapsed ~ #main-content #sidebar-expand-btn { display: inline-flex; }
+        #trial-banner { animation: fadeIn 0.5s ease; }
+        .empty-state { text-align: center; padding: 4rem 1rem; }
+        .empty-state svg { margin: 0 auto 1rem; }
+    </style>
+</head>
+<body class="text-base">
+
+    <div id="loading-indicator" class="fixed inset-0 bg-white/80 dark:bg-gray-900/80 z-[2000] flex items-center justify-center" style="display:none;">
+        <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="mt-2" data-lang-key="loading-text"></p>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="login-container" class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4" style="display:none;">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+                <svg class="mx-auto h-12 w-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" /></svg>
+                <h2 class="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white" data-lang-key="login-welcome"></h2>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400" data-lang-key="login-prompt"></p>
+            </div>
+            <form id="login-form" class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg space-y-6">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg></span>
+                    <input id="username" name="username" type="text" required class="form-input pl-10" placeholder="اسم المستخدم" autocomplete="username">
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></span>
+                    <input id="password" name="password" type="password" required class="form-input pl-10 pr-10" placeholder="كلمة المرور" autocomplete="current-password">
+                    <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                        <svg id="eye-icon" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                        <svg id="eye-off-icon" class="h-5 w-5 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074L3.707 2.293zM10 12a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /><path d="M2 10s3.939 4 8 4 8-4 8-4-3.939-4-8-4-8 4-8 4zm10.707-1.293a1 1 0 00-1.414-1.414l-4 4a1 1 0 101.414 1.414l4-4z" /></svg>
+                    </button>
+                </div>
+                <div class="flex items-center">
+                    <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="remember-me" class="mr-2 block text-sm text-gray-900 dark:text-gray-300" data-lang-key="remember-me"></label>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <button type="submit" id="login-btn" class="btn btn-primary w-full h-[48px]">
+                        <span class="btn-text" data-lang-key="login-btn"></span>
+                        <span class="btn-spinner hidden"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
+                    </button>
+                    <button type="button" id="open-register-modal-btn" class="text-sm text-blue-600 hover:underline" data-lang-key="create-account-prompt"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-container" class="flex h-screen" style="display:none;">
+        <aside id="sidebar" class="w-64 flex-shrink-0 p-4 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800">
+            <div class="flex items-center justify-between mb-10">
+                <h1 class="text-2xl font-bold text-blue-600 sidebar-title">لوحة التحكم</h1>
+                <button id="sidebar-collapse-btn" class="btn btn-icon btn-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                </button>
+            </div>
+            <nav class="flex-grow">
+                <ul>
+                    <li class="mb-2"><a href="#" id="nav-dashboard" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg><span data-lang-key="dashboard-title"></span></a></li>
+                    <li class="mb-2"><a href="#" id="nav-profile" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg><span data-lang-key="profile-title"></span></a></li>
+                    <li id="nav-users-li" class="mb-2 hidden"><a href="#" id="nav-users" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A10.004 10.004 0 0012 13a10.004 10.004 0 00-3-5.197m-2.236-3.848A10.004 10.004 0 0012 3a10.004 10.004 0 00-5.236 1.955M12 13a4 4 0 100-8 4 4 0 000 8z" /></svg><span data-lang-key="users-title"></span></a></li>
+                    <li id="nav-activity-li" class="mb-2 hidden"><a href="#" id="nav-activity" class="nav-link"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg><span data-lang-key="activity-log-title"></span></a></li>
+                </ul>
+            </nav>
+            <div class="text-center text-xs text-gray-400 sidebar-title">
+                <div class="flex justify-center items-center gap-4 mb-3">
+                    <a href="mailto:abdulrhman.abdulghaffar001@gmail.com" target="_blank" rel="noopener noreferrer" title="Email" class="text-gray-400 hover:text-blue-500 transition-colors">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.67v8.58a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3V8.67l-8.928 5.493a3 3 0 0 1-3.144 0L1.5 8.67Z" /><path d="M22.5 6.908V6.75a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3v.158l9.714 5.978a1.5 1.5 0 0 0 1.572 0L22.5 6.908Z" /></svg>
+                    </a>
+                    <a href="https://www.linkedin.com/in/AbdulRhmanAbdulGhaffar" target="_blank" rel="noopener noreferrer" title="LinkedIn" class="text-gray-400 hover:text-blue-500 transition-colors">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2ZM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 1 1 8.25 6.5 1.75 1.75 0 0 1 6.5 8.25ZM19 19h-3v-4.75c0-1.4-1.2-2.5-2.5-2.5S11 12.85 11 14.25V19h-3v-9h2.9v1.3a3.11 3.11 0 0 1 2.6-1.4c2.5 0 4.5 2.2 4.5 5.1z" /></svg>
+                    </a>
+                    <a href="https://github.com/AbdulRhmanAbdulGhaffar" target="_blank" rel="noopener noreferrer" title="GitHub" class="text-gray-400 hover:text-blue-500 transition-colors">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.168 6.839 9.492.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0 0 22 12c0-5.523-4.477-10-10-10Z" clip-rule="evenodd" /></svg>
+                    </a>
+                </div>
+                <p>&copy; AbdulRhman AbdulGhaffar</p>
+            </div>
+        </aside>
+
+        <main id="main-content" class="flex-1 p-6 lg:p-8 overflow-y-auto">
+            <div id="trial-banner" class="hidden p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300" role="alert">
+                <span id="trial-banner-message"></span>
+                <button type="button" id="close-trial-banner" class="ml-auto -mx-1.5 -my-1.5 bg-yellow-50 text-yellow-500 rounded-lg focus:ring-2 focus:ring-yellow-400 p-1.5 hover:bg-yellow-200 inline-flex h-8 w-8 dark:bg-gray-800 dark:text-yellow-300 dark:hover:bg-gray-700" aria-label="Close">
+                    <span class="sr-only">Close</span>
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            <div id="breadcrumb-container" class="mb-4 text-sm text-gray-500"></div>
+            <div id="page-dashboard">
+                <header class="flex justify-between items-center mb-8 flex-wrap gap-4">
+                    <div class="flex items-center gap-4">
+                        <button id="sidebar-expand-btn" class="btn btn-icon btn-secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                        <div>
+                            <h2 class="text-3xl font-bold" data-lang-key="dashboard-title"></h2>
+                            <p id="welcome-message" class="text-gray-500 dark:text-gray-400"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <select id="language-switcher" class="form-input w-28"></select>
+                        <button id="theme-toggle" class="btn btn-secondary btn-icon">
+                            <svg id="theme-toggle-dark-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                            <svg id="theme-toggle-light-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                        </button>
+                        <button id="logout-btn" class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg><span data-lang-key="logout-btn"></span></button>
+                    </div>
+                </header>
+
+                <div id="kpi-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
+
+                <div class="card p-6 rounded-xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
+                        <div>
+                            <h3 class="text-xl font-bold" data-lang-key="records-title"></h3>
+                            <div id="import-progress-container">
+                                <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                    <div id="import-progress-bar" class="bg-blue-600 h-2.5 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap justify-center items-center gap-3">
+                            <button id="open-add-modal-btn" class="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg><span data-lang-key="add-new-record"></span></button>
+                            <button id="customize-btn" class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg><span data-lang-key="customize-btn"></span></button>
+                            <button id="open-report-modal-btn" class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg><span data-lang-key="generate-report-btn"></span></button>
+                            <button id="import-btn" class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg><span data-lang-key="import-btn"></span></button>
+                            <input type="file" id="import-file-input" class="hidden" accept=".csv, .xlsx">
+                            <div class="flex items-center gap-2">
+                                <select id="export-format" class="form-input w-28"></select>
+                                <button id="export-btn" class="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg><span data-lang-key="export-btn"></span></button>
+                            </div>
+                            <button id="clear-all-btn" class="btn btn-danger"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span data-lang-key="clear-all-btn"></span></button>
+                        </div>
+                    </div>
+                    <div class="flex items-center w-full my-4 gap-2">
+                        <select id="search-category" class="form-input w-48"></select>
+                        <input type="text" id="search-input" class="form-input w-full" placeholder="ابحث...">
+                    </div>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table class="min-w-full">
+                            <thead id="table-headers" class="text-sm uppercase"></thead>
+                            <tbody id="data-table-body" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            <tfoot id="table-footer"></tfoot>
+                        </table>
+                    </div>
+                    <div id="pagination-controls" class="flex justify-between items-center mt-4 flex-wrap gap-4"></div>
+                </div>
+            </div>
+
+            <div id="page-profile" class="hidden">
+                 <h2 class="text-3xl font-bold mb-8" data-lang-key="profile-title"></h2>
+                 <div class="space-y-8 max-w-4xl mx-auto">
+                    <div class="card p-6 rounded-xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold" data-lang-key="profile-details-title"></h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-gray-500" data-lang-key="full-name-label"></label>
+                                <p id="profile-name" class="font-semibold text-lg"></p>
+                            </div>
+                             <div>
+                                <label class="text-sm text-gray-500" data-lang-key="username-label"></label>
+                                <p id="profile-username" class="font-semibold text-lg"></p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-500" data-lang-key="email-label"></label>
+                                <p id="profile-email" class="font-semibold text-lg"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- License Info Card -->
+                    <div id="license-info-card" class="card p-6 rounded-xl">
+                        <h3 class="text-xl font-bold mb-4" data-lang-key="license-info-title"></h3>
+                        <div id="license-details-container" class="space-y-3"></div>
+                        <!-- User License Activation Section -->
+                        <div id="user-license-activation-section" class="hidden mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <h4 class="font-semibold mb-2" data-lang-key="activate-license-title"></h4>
+                            <p class="text-sm text-gray-500 mb-3" data-lang-key="activate-license-prompt"></p>
+                            <div class="flex items-center gap-2">
+                                <input id="user-license-key-input" type="text" class="form-input w-full font-mono" placeholder="XXXX-XXXX-XXXX-XXXX">
+                                <button id="user-activate-license-btn" class="btn btn-primary whitespace-nowrap" data-lang-key="activate-btn"></button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Security Card for All Users -->
+                    <div id="security-card" class="card p-6 rounded-xl">
+                             <h3 class="text-xl font-bold mb-4" data-lang-key="security-title"></h3>
+                             <div class="flex flex-wrap gap-4">
+                                 <button id="open-change-password-modal-btn" class="btn btn-secondary" data-lang-key="change-password-btn"></button>
+                                 <a href="mailto:abdulrhman.abdulghaffar001@gmail.com" id="contact-admin-btn" class="btn btn-secondary" data-lang-key="contact-admin-btn"></a>
+                             </div>
+                    </div>
+                    <!-- Danger Zone for Non-Admin Users -->
+                    <div id="danger-zone-card" class="card p-6 rounded-xl border-red-500/50">
+                             <h3 class="text-xl font-bold text-red-600 mb-2" data-lang-key="danger-zone-title"></h3>
+                             <p class="text-gray-500 mb-4" data-lang-key="delete-account-warning"></p>
+                             <button id="delete-account-btn" class="btn btn-danger" data-lang-key="delete-account-btn"></button>
+                    </div>
+                 </div>
+            </div>
+
+            <div id="page-users" class="hidden">
+                 <div class="flex justify-between items-center mb-8">
+                     <h2 class="text-3xl font-bold" data-lang-key="users-title"></h2>
+                     <button id="open-add-user-modal-btn" class="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg><span data-lang-key="add-user-btn"></span></button>
+                 </div>
+                 <div class="card p-6 rounded-xl">
+                      <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                          <table class="min-w-full">
+                              <thead id="users-table-headers" class="text-sm uppercase"></thead>
+                              <tbody id="users-table-body" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                          </table>
+                      </div>
+                 </div>
+            </div>
+            
+            <div id="page-activity-log" class="hidden">
+                <h2 class="text-3xl font-bold mb-8" data-lang-key="activity-log-title"></h2>
+                <div class="card p-6 rounded-xl">
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table class="min-w-full">
+                            <thead id="activity-log-table-headers" class="text-sm uppercase"></thead>
+                            <tbody id="activity-log-table-body" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    
+    <div id="record-modal" class="modal">
+        <div class="modal-content max-w-2xl p-8">
+            <span class="close-btn" data-modal-id="record-modal">&times;</span>
+            <h2 id="modal-title" class="text-2xl font-bold mb-6 text-center"></h2>
+            <form id="data-entry-form">
+                <div id="data-entry-fields" class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6"></div>
+                <div class="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button type="submit" id="save-btn" class="btn btn-primary w-full"></button>
+                    <button type="button" id="clear-btn" class="btn btn-secondary w-full"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="register-modal" class="modal">
+        <div class="modal-content max-w-md p-8">
+            <span class="close-btn" data-modal-id="register-modal">&times;</span>
+            <h2 id="register-modal-title" class="text-2xl font-bold mb-6 text-center" data-lang-key="register-title"></h2>
+            <form id="register-form" class="space-y-4">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></span>
+                    <input id="register-name" type="text" required class="form-input pl-10" placeholder="الاسم الكامل" autocomplete="name">
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></span>
+                    <input id="register-email" type="email" required class="form-input pl-10" placeholder="البريد الإلكتروني" autocomplete="email">
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg></span>
+                    <input id="register-username" type="text" required class="form-input pl-10" placeholder="اسم المستخدم" autocomplete="username">
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></span>
+                    <input id="register-password" type="password" required class="form-input pl-10" placeholder="كلمة المرور" autocomplete="new-password">
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                        <div id="password-strength-bar" class="h-1.5 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                    <p id="password-strength-text" class="text-xs mt-1"></p>
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></span>
+                    <input id="register-password-confirm" type="password" required class="form-input pl-10" placeholder="تأكيد كلمة المرور" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-full h-[48px]" data-lang-key="register-btn"></button>
+            </form>
+        </div>
+    </div>
+    <div id="customize-modal" class="modal">
+        <div class="modal-content p-8 max-w-2xl">
+            <span class="close-btn" data-modal-id="customize-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="customize-modal-title"></h2>
+            <div id="labels-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 max-h-96 overflow-y-auto p-2"></div>
+            <div class="flex justify-between mt-6 flex-wrap gap-4">
+                <button id="add-field-btn" class="btn btn-secondary" data-lang-key="add-field-btn"></button>
+                <button id="reset-fields-btn" class="btn btn-danger" data-lang-key="reset-fields-btn"></button>
+                <button id="modal-update-labels-btn" class="btn btn-primary" data-lang-key="update-labels-btn"></button>
+            </div>
+        </div>
+    </div>
+    <div id="alert-modal" class="modal">
+        <div class="modal-content w-full max-w-md text-center p-8">
+            <h3 id="alert-message" class="text-lg font-semibold mb-6"></h3>
+            <button id="close-alert-btn" class="btn btn-primary w-full" data-lang-key="ok-btn"></button>
+        </div>
+    </div>
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content w-full max-w-md text-center p-8">
+            <h3 id="confirm-message" class="text-lg font-semibold mb-6"></h3>
+            <div class="flex justify-center space-x-4 space-x-reverse">
+                <button id="confirm-yes" class="btn btn-danger" data-lang-key="confirm-yes"></button>
+                <button id="confirm-no" class="btn btn-secondary" data-lang-key="confirm-no"></button>
+            </div>
+        </div>
+    </div>
+    <div id="license-modal" class="modal">
+        <div class="modal-content w-full max-w-md text-center p-8">
+            <h3 id="license-modal-title" class="text-xl font-bold mb-4" data-lang-key="trial-expired-title"></h3>
+            <p id="license-modal-message" class="text-gray-600 dark:text-gray-400 mb-6" data-lang-key="trial-expired-message"></p>
+            <div class="flex flex-col gap-3">
+                <a href="mailto:abdulrhman.abdulghaffar001@gmail.com" id="contact-us-btn" class="btn btn-primary w-full" data-lang-key="contact-us-btn"></a>
+                <button id="close-license-btn" class="btn btn-secondary w-full" data-lang-key="ok-btn"></button>
+            </div>
+        </div>
+    </div>
+    <div id="report-modal" class="modal">
+        <div class="modal-content p-8 max-w-4xl">
+            <span class="close-btn" data-modal-id="report-modal">&times;</span>
+            <div id="report-builder-ui">
+                <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="report-builder-title"></h2>
+                <div class="border p-4 rounded-lg mb-4">
+                    <h3 class="text-lg font-semibold mb-2" data-lang-key="report-filters-title"></h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                        <div><label for="date-from" data-lang-key="date-from-label"></label><input type="date" id="date-from" class="form-input"></div>
+                        <div><label for="date-to" data-lang-key="date-to-label"></label><input type="date" id="date-to" class="form-input"></div>
+                    </div>
+                    <div id="report-filters-container"></div>
+                    <button id="add-filter-btn" class="btn btn-secondary mt-2" data-lang-key="add-filter-btn"></button>
+                </div>
+                <div class="border p-4 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold mb-2" data-lang-key="chart-config-title"></h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label for="chart-type" data-lang-key="chart-type-label"></label><select id="chart-type" class="form-input"></select></div>
+                        <div><label for="chart-category-select" data-lang-key="chart-category-label"></label><select id="chart-category-select" class="form-input"></select></div>
+                        <div><label for="chart-value-select" data-lang-key="chart-value-label"></label><select id="chart-value-select" class="form-input"></select></div>
+                    </div>
+                </div>
+                <div class="flex justify-center"><button id="generate-report-btn" class="btn btn-primary" data-lang-key="generate-report-btn"></button></div>
+            </div>
+            <div id="report-content-container" class="hidden">
+                 <h2 id="report-title-print" class="text-2xl font-bold mb-6 text-center"></h2>
+                 <div id="report-summary-print">
+                     <h3 class="text-xl font-bold mb-4" data-lang-key="general-stats-title"></h3>
+                     <ul class="list-disc list-inside mb-4" id="report-stats"></ul>
+                 </div>
+                 <div id="report-chart-print" class="h-96 w-full mb-6"><canvas id="specialty-chart"></canvas></div>
+                 <div class="flex justify-center mt-6 gap-4 flex-wrap">
+                     <button id="print-btn" class="btn btn-primary" data-lang-key="print-btn"></button>
+                     <button id="download-png-btn" class="btn btn-secondary" data-lang-key="download-png-btn"></button>
+                     <button id="download-pdf-btn" class="btn btn-secondary" data-lang-key="download-pdf-btn"></button>
+                 </div>
+            </div>
+        </div>
+    </div>
+    <div id="edit-user-modal" class="modal">
+        <div class="modal-content max-w-md p-8">
+            <span class="close-btn" data-modal-id="edit-user-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="edit-user-title"></h2>
+            <form id="edit-user-form" class="space-y-4">
+                <div>
+                    <label for="edit-user-name" class="mb-2 font-semibold block" data-lang-key="full-name-label"></label>
+                    <input id="edit-user-name" type="text" required class="form-input">
+                </div>
+                <div>
+                    <label for="edit-user-email" class="mb-2 font-semibold block" data-lang-key="email-label"></label>
+                    <input id="edit-user-email" type="email" required class="form-input">
+                </div>
+                 <div>
+                    <label for="edit-user-username" class="mb-2 font-semibold block" data-lang-key="username-label"></label>
+                    <input id="edit-user-username" type="text" required class="form-input bg-gray-100 dark:bg-gray-700" readonly>
+                </div>
+                <button type="submit" class="btn btn-primary w-full h-[48px]" data-lang-key="update-btn"></button>
+            </form>
+        </div>
+    </div>
+      <div id="change-password-modal" class="modal">
+        <div class="modal-content max-w-md p-8">
+            <span class="close-btn" data-modal-id="change-password-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="change-password-title"></h2>
+            <form id="change-password-form" class="space-y-4">
+                <div>
+                    <label for="old-password" class="mb-2 font-semibold block" data-lang-key="old-password-label"></label>
+                    <input id="old-password" type="password" required class="form-input" autocomplete="current-password">
+                </div>
+                <div>
+                    <label for="new-password" class="mb-2 font-semibold block" data-lang-key="new-password-label"></label>
+                    <input id="new-password" type="password" required class="form-input" autocomplete="new-password">
+                </div>
+                 <div>
+                    <label for="confirm-new-password" class="mb-2 font-semibold block" data-lang-key="password-confirm-label"></label>
+                    <input id="confirm-new-password" type="password" required class="form-input" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-full h-[48px]" data-lang-key="update-btn"></button>
+            </form>
+        </div>
+    </div>
+      <div id="admin-change-password-modal" class="modal">
+        <div class="modal-content max-w-md p-8">
+            <span class="close-btn" data-modal-id="admin-change-password-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="change-user-password-title"></h2>
+            <form id="admin-change-password-form" class="space-y-4">
+                <div>
+                    <label for="admin-new-password" class="mb-2 font-semibold block" data-lang-key="new-password-label"></label>
+                    <input id="admin-new-password" type="password" required class="form-input" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-full h-[48px]" data-lang-key="update-btn"></button>
+            </form>
+        </div>
+    </div>
+    <div id="manage-license-modal" class="modal">
+        <div class="modal-content max-w-2xl p-8">
+            <span class="close-btn" data-modal-id="manage-license-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="manage-license-title"></h2>
+            <div class="text-center mb-6">
+                <p><strong data-lang-key="username-label"></strong>: <span id="license-username"></span></p>
+                <p><strong data-lang-key="license-status-header"></strong>: <span id="license-current-status" class="px-2 py-1 text-sm font-medium rounded-full"></span></p>
+                <p id="license-expiry-info-container"><strong data-lang-key="expires-on-header"></strong>: <span id="license-expiry-info"></span></p>
+            </div>
+            <div class="space-y-4">
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-semibold mb-2" data-lang-key="generate-license-key-title"></h3>
+                    <div class="flex items-center gap-2">
+                        <input id="generated-license-key" type="text" readonly class="form-input bg-gray-100 dark:bg-gray-700 w-full" placeholder="XXXX-XXXX-XXXX-XXXX">
+                        <button type="button" id="copy-key-btn" class="btn btn-secondary whitespace-nowrap" data-lang-key="copy-key-btn"></button>
+                        <button type="button" id="generate-key-btn" class="btn btn-secondary whitespace-nowrap" data-lang-key="generate-key-btn"></button>
+                    </div>
+                </div>
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-semibold mb-2" data-lang-key="extend-trial-title"></h3>
+                    <div class="flex items-center gap-2">
+                        <input id="extend-days" type="number" min="1" class="form-input w-full" placeholder="e.g., 30">
+                        <button type="button" id="extend-trial-btn" class="btn btn-secondary whitespace-nowrap" data-lang-key="extend-btn"></button>
+                    </div>
+                </div>
+                 <div class="p-4 border border-red-500/50 rounded-lg flex justify-between items-center">
+                    <div>
+                         <h3 class="font-semibold text-red-600" data-lang-key="reset-trial-title"></h3>
+                         <p class="text-sm text-gray-500" data-lang-key="reset-trial-desc"></p>
+                    </div>
+                    <button type="button" id="reset-trial-btn" class="btn btn-danger" data-lang-key="reset-trial-btn"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Obfuscation placeholder to make reverse-engineering harder.
+        // In a real app, this would be a minified, obfuscated script file.
+        const F = {}; 
+        
+        // Centralized state management
+        F.state = {
+            allData: [], filteredData: [], reportData: [], dynamicFields: [], editingItemId: null,
+            editingUsername: null, currentLang: 'ar', currentPage: 'dashboard', currentPageNumber: 1,
+            rowsPerPage: 10, sortColumn: 'id', sortDirection: 'asc', isLoggedIn: false,
+            isAdmin: false, currentUser: null, currentUserName: null, currentChart: null,
+            obfuscatedCode: "some_obfuscated_code_here" // Placeholder
+        };
+        const defaultFields = [
+            { id: 'name', type: 'text', required: true }, { id: 'address', type: 'text', required: false },
+            { id: 'phone', type: 'tel', required: false }, { id: 'facebook', type: 'url', required: false },
+            { id: 'specialty', type: 'text', required: false }, { id: 'price', type: 'number', step: '0.01', required: false },
+            { id: 'last_post', type: 'text', required: false }
+        ];
+        const translations = {
+            'ar': {
+                'dashboard-title': 'لوحة التحكم', 'logout-btn': 'تسجيل الخروج', 'login-title': 'تسجيل الدخول',
+                'username-label': 'اسم المستخدم', 'password-label': 'كلمة المرور', 'login-btn': 'تسجيل الدخول', 'register-btn': 'إنشاء حساب',
+                'save-btn': 'حفظ البيانات', 'update-btn': 'تحديث البيانات', 'clear-btn': 'مسح الحقول',
+                'customize-btn': 'تخصيص', 'export-btn': 'تصدير', 'clear-all-btn': 'حذف الكل',
+                'import-btn': 'استيراد', 'generate-report-btn': 'تقارير', 'records-title': 'السجلات المدخلة',
+                'all-fields': 'كل الحقول', 'customize-modal-title': 'تخصيص أسماء الحقول', 'add-field-btn': 'إضافة حقل',
+                'update-labels-btn': 'تحديث', 'ok-btn': 'حسناً', 'confirm-yes': 'نعم', 'confirm-no': 'إلغاء',
+                'report-title': 'تقرير البيانات', 'bar-chart': 'رسم بياني عمودي', 'pie-chart': 'رسم بياني دائري',
+                'doughnut-chart': 'رسم بياني حلقي', 'line-chart': 'رسم بياني خطي', 'general-stats-title': 'إحصائيات عامة',
+                'print-btn': 'طباعة', 'download-png-btn': 'تحميل PNG', 'download-pdf-btn': 'تحميل PDF',
+                'id-header': 'م', 'action-header': 'إجراء', 'name-label': 'الاسم', 'address-label': 'العنوان',
+                'phone-label': 'رقم الهاتف', 'facebook-label': 'رابط فيسبوك', 'specialty-label': 'التخصص',
+                'price-label': 'سعر الكشف', 'last_post-label': 'آخر منشور', 'creationDate-label': 'تاريخ الإنشاء',
+                'placeholder-text': 'ادخل {label} هنا', 'no-records': 'لا توجد سجلات. قم بإضافة سجل جديد!', 'no-search-results': 'لا توجد نتائج مطابقة لبحثك.',
+                'no-data-to-export': 'لا توجد بيانات للتصدير.', 'export-success': 'تم تصدير البيانات بنجاح.',
+                'import-success': 'تم استيراد {added} سجلات وتحديث {updated}.', 'empty-file-error': 'ملف فارغ أو غير صحيح.',
+                'file-type-error': 'صيغة الملف غير مدعومة.', 'data-saved-success': 'تم حفظ السجل بنجاح.',
+                'data-updated-success': 'تم تحديث السجل بنجاح.', 'no-data-to-save': 'الرجاء إدخال بيانات قبل الحفظ.',
+                'record-deleted-success': 'تم حذف السجل بنجاح.', 'all-records-deleted': 'تم حذف كل السجلات.',
+                'login-error': 'اسم المستخدم أو كلمة المرور غير صحيحة.', 'no-report-data': 'لا توجد بيانات مطابقة لإنشاء تقرير.',
+                'loading-text': 'جاري التحميل...', 'min-price': 'أقل سعر', 'max-price': 'أعلى سعر',
+                'avg-price': 'متوسط السعر', 'total-records': 'إجمالي السجلات', 'unique-specialties': 'التخصصات الفريدة',
+                'analysis-chart-title': 'تحليل البيانات', 'edit-btn': 'تعديل', 'delete-btn': 'حذف', 'no-data-placeholder': 'لا يوجد',
+                'validation-required': 'هذا الحقل مطلوب.', 'validation-url': 'الرجاء إدخال رابط صحيح.', 'validation-tel': 'الرجاء إدخال أرقام فقط.', 'validation-email': 'الرجاء إدخال بريد إلكتروني صحيح.',
+                'reset-fields-btn': 'إعادة للوضع الافتراضي', 'fields-reset-success': 'تمت إعادة الحقول للوضع الافتراضي.',
+                'confirm-reset-fields': 'هل أنت متأكد؟ سيتم حذف أي حقول مضافة.', 'page': 'صفحة', 'of': 'من', 'rows-per-page': 'صفوف لكل صفحة:',
+                'report-builder-title': 'منشئ التقارير', 'report-filters-title': 'فلترة البيانات', 'date-from-label': 'من تاريخ', 'date-to-label': 'إلى تاريخ',
+                'add-filter-btn': 'إضافة فلتر', 'chart-config-title': 'إعدادات الرسم البياني', 'chart-type-label': 'نوع الرسم',
+                'chart-category-label': 'تجميع حسب', 'chart-value-label': 'عرض القيمة كـ', 'value-count': 'عدد السجلات', 'value-avg': 'متوسط {field}',
+                'value-sum': 'مجموع {field}', 'op-equals': 'يساوي', 'op-contains': 'يحتوي على', 'op-gt': 'أكبر من', 'op-lt': 'أصغر من',
+                'login-welcome': 'مرحباً بك!', 'login-prompt': 'سجل دخولك أو أنشئ حساباً جديداً', 'remember-me': 'تذكرني',
+                'register-success': 'تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.', 'user-exists-error': 'اسم المستخدم هذا موجود بالفعل.',
+                'register-title': 'إنشاء حساب جديد', 'password-confirm-label': 'تأكيد كلمة المرور', 'password-mismatch': 'كلمتا المرور غير متطابقتين.',
+                'password-weak': 'ضعيفة', 'password-medium': 'متوسطة', 'password-strong': 'قوية', 'create-account-prompt': 'ليس لديك حساب؟ أنشئ واحداً',
+                'welcome-user': 'مرحباً، {user}!', 'add-new-record': 'إضافة سجل جديد', 'full-name-label': 'الاسم الكامل', 'email-label': 'البريد الإلكتروني',
+                'profile-title': 'الملف الشخصي', 'profile-details-title': 'تفاصيل الملف الشخصي', 'edit-profile-btn': 'تعديل الملف الشخصي', 'security-title': 'الأمان',
+                'change-password-btn': 'تغيير كلمة المرور', 'danger-zone-title': 'منطقة الخطر', 'delete-account-warning': 'بمجرد حذف حسابك، لا يمكن التراجع عن هذا الإجراء.',
+                'delete-account-btn': 'حذف الحساب', 'edit-profile-title': 'تعديل الملف الشخصي', 'change-password-title': 'تغيير كلمة المرور', 'old-password-label': 'كلمة المرور القديمة',
+                'new-password-label': 'كلمة المرور الجديدة', 'profile-updated-success': 'تم تحديث الملف الشخصي بنجاح.', 'password-updated-success': 'تم تحديث كلمة المرور بنجاح.',
+                'old-password-incorrect': 'كلمة المرور القديمة غير صحيحة.', 'confirm-delete-account': 'هل أنت متأكد تماماً؟ سيتم حذف حسابك وجميع بياناتك نهائياً.',
+                'password-weak-error': 'كلمة المرور ضعيفة جداً. يجب أن تكون متوسطة أو قوية على الأقل.',
+                'users-title': 'إدارة المستخدمين', 'status-header': 'حالة الحساب', 'suspend-btn': 'إيقاف', 'activate-btn': 'تفعيل', 'user-suspended-success': 'تم إيقاف حساب المستخدم.', 'user-activated-success': 'تم تفعيل حساب المستخدم.', 'user-deleted-success': 'تم حذف المستخدم بنجاح.', 'account-suspended-error': 'تم إيقاف حسابك. يرجى مراجعة الإدارة.',
+                'edit-user-title': 'تعديل بيانات المستخدم', 'change-user-password-title': 'تغيير كلمة مرور المستخدم', 'user-profile-updated-success': 'تم تحديث بيانات المستخدم بنجاح.', 'user-password-updated-success': 'تم تحديث كلمة مرور المستخدم بنجاح.',
+                'add-user-btn': 'إضافة مستخدم', 'add-user-title': 'إضافة مستخدم جديد', 'user-added-success': 'تم إضافة المستخدم بنجاح.',
+                'trial-welcome': 'مرحباً بك! تستمتع الآن بفترة تجريبية مجانية لمدة 30 يوماً.', 'trial-expired-title': 'انتهت الفترة التجريبية', 'trial-expired-message': 'لقد انتهت فترة التجربة المجانية الخاصة بك. لشراء ترخيص والاستمرار في استخدام البرنامج، يرجى التواصل معنا.', 'contact-us-btn': 'تواصل معنا',
+                'license-status-header': 'حالة الترخيص', 'expires-on-header': 'ينتهي في', 'manage-license-btn': 'إدارة الترخيص', 'manage-license-title': 'إدارة ترخيص المستخدم',
+                'license-status-trial': 'فترة تجريبية', 'license-status-active': 'نشط', 'license-status-expired': 'منتهي', 'days-remaining': '{days} أيام متبقية', 'license-unlimited': 'غير محدود',
+                'extend-trial-title': 'تمديد الفترة التجريبية', 'extend-btn': 'تمديد', 'full-license-title': 'الترخيص الكامل', 'full-license-desc': 'إزالة جميع قيود الفترة التجريبية.', 'activate-license-btn': 'تفعيل',
+                'license-updated-success': 'تم تحديث ترخيص المستخدم بنجاح.', 'reset-trial-title': 'إعادة تعيين التجربة', 'reset-trial-desc': 'إرجاع المستخدم إلى فترة تجريبية جديدة مدتها 30 يومًا.', 'reset-trial-btn': 'إعادة تعيين',
+                'license-info-title': 'معلومات الترخيص', 'license-key-label': 'مفتاح الترخيص', 'license-start-date-label': 'تاريخ البدء', 'license-end-date-label': 'تاريخ الانتهاء',
+                'generate-license-key-title': 'إنشاء مفتاح تفعيل جديد', 'generate-key-btn': 'إنشاء', 'copy-key-btn': 'نسخ', 'assign-key-btn': 'تعيين للمستخدم', 'key-copied-success': 'تم نسخ المفتاح!',
+                'trial-banner-message': 'أنت تستخدم الفترة التجريبية. تبقى لديك {days} أيام. سيتم تقييد حسابك بعد ذلك.', 'license-status-permanent': 'دائم', 'contact-admin-btn': 'تواصل مع الدعم',
+                'activity-log-title': 'سجل النشاط', 'activity-log-header-user': 'المستخدم', 'activity-log-header-action': 'الإجراء', 'activity-log-header-details': 'التفاصيل', 'activity-log-header-timestamp': 'الوقت',
+                'log-login': 'تسجيل الدخول', 'log-logout': 'تسجيل الخروج', 'log-create-record': 'إنشاء سجل جديد', 'log-update-record': 'تحديث السجل', 'log-delete-record': 'حذف السجل',
+                'log-delete-all': 'حذف جميع السجلات', 'log-import': 'استيراد بيانات', 'log-suspend-user': 'إيقاف المستخدم', 'log-activate-user': 'تفعيل المستخدم', 'log-delete-user': 'حذف المستخدم',
+                'activate-license-title': 'تفعيل الترخيص الخاص بك', 'activate-license-prompt': 'إذا كان لديك مفتاح تفعيل، قم بإدخاله هنا لتفعيل النسخة الكاملة.', 'activate-btn': 'تفعيل', 'invalid-license-key': 'مفتاح التفعيل غير صالح أو مستخدم بالفعل.',
+                'license-activated-success': 'تم تفعيل الترخيص بنجاح!', 'log-activate-license': 'تفعيل الترخيص',
+            },
+            'en': {
+                'dashboard-title': 'Dashboard', 'logout-btn': 'Logout', 'login-title': 'Login',
+                'username-label': 'Username', 'password-label': 'Password', 'login-btn': 'Login', 'register-btn': 'Register',
+                'save-btn': 'Save Data', 'update-btn': 'Update Data', 'clear-btn': 'Clear Fields',
+                'customize-btn': 'Customize', 'export-btn': 'Export', 'clear-all-btn': 'Clear All',
+                'import-btn': 'Import', 'generate-report-btn': 'Reports', 'records-title': 'Entered Records',
+                'all-fields': 'All Fields', 'customize-modal-title': 'Customize Field Names', 'add-field-btn': 'Add Field',
+                'update-labels-btn': 'Update', 'ok-btn': 'OK', 'confirm-yes': 'Yes', 'confirm-no': 'Cancel',
+                'report-title': 'Data Report', 'bar-chart': 'Bar Chart', 'pie-chart': 'Pie Chart',
+                'doughnut-chart': 'Doughnut Chart', 'line-chart': 'Line Chart', 'general-stats-title': 'General Statistics',
+                'print-btn': 'Print', 'download-png-btn': 'Download PNG', 'download-pdf-btn': 'Download PDF',
+                'id-header': 'ID', 'action-header': 'Action', 'name-label': 'Name', 'address-label': 'Address',
+                'phone-label': 'Phone Number', 'facebook-label': 'Facebook Link', 'specialty-label': 'Specialty',
+                'price-label': 'Price', 'last_post-label': 'Last Post', 'creationDate-label': 'Creation Date',
+                'placeholder-text': 'Enter {label} here', 'no-records': 'No records found. Add a new one!', 'no-search-results': 'No results match your search.',
+                'no-data-to-export': 'No data to export.', 'export-success': 'Data exported successfully.',
+                'import-success': 'Imported {added} records and updated {updated}.', 'empty-file-error': 'Empty or invalid file.',
+                'file-type-error': 'Unsupported file format.', 'data-saved-success': 'Record saved successfully.',
+                'data-updated-success': 'Record updated successfully.', 'no-data-to-save': 'Please enter data before saving.',
+                'record-deleted-success': 'Record deleted successfully.', 'all-records-deleted': 'All records have been deleted.',
+                'login-error': 'Incorrect username or password.', 'no-report-data': 'No matching data to generate a report.',
+                'loading-text': 'Loading...', 'min-price': 'Min Price', 'max-price': 'Max Price',
+                'avg-price': 'Avg. Price', 'total-records': 'Total Records', 'unique-specialties': 'Unique Specialties',
+                'analysis-chart-title': 'Data Analysis', 'edit-btn': 'Edit', 'delete-btn': 'Delete', 'no-data-placeholder': 'N/A',
+                'validation-required': 'This field is required.', 'validation-url': 'Please enter a valid URL.', 'validation-tel': 'Please enter numbers only.', 'validation-email': 'Please enter a valid email.',
+                'reset-fields-btn': 'Reset to Default', 'fields-reset-success': 'Fields have been reset to default.',
+                'confirm-reset-fields': 'Are you sure? Any added fields will be deleted.', 'page': 'Page', 'of': 'of', 'rows-per-page': 'Rows per page:',
+                'report-builder-title': 'Report Builder', 'report-filters-title': 'Data Filters', 'date-from-label': 'From Date', 'date-to-label': 'To Date',
+                'add-filter-btn': 'Add Filter', 'chart-config-title': 'Chart Settings', 'chart-type-label': 'Chart Type',
+                'chart-category-label': 'Group By', 'chart-value-label': 'Value As', 'value-count': 'Record Count', 'value-avg': 'Average {field}',
+                'value-sum': 'Sum of {field}', 'op-equals': 'Equals', 'op-contains': 'Contains', 'op-gt': 'Greater than', 'op-lt': 'Less than',
+                'login-welcome': 'Welcome Back!', 'login-prompt': 'Log in or create a new account', 'remember-me': 'Remember me',
+                'register-success': 'Account created successfully! You can now log in.', 'user-exists-error': 'This username already exists.',
+                'register-title': 'Create a New Account', 'password-confirm-label': 'Confirm Password', 'password-mismatch': 'Passwords do not match.',
+                'password-weak': 'Weak', 'password-medium': 'Medium', 'password-strong': 'Strong', 'create-account-prompt': "Don't have an account? Create one",
+                'welcome-user': 'Welcome, {user}!', 'add-new-record': 'Add New Record', 'full-name-label': 'Full Name', 'email-label': 'Email',
+                'profile-title': 'Profile', 'profile-details-title': 'Profile Details', 'edit-profile-btn': 'Edit Profile', 'security-title': 'Security',
+                'change-password-btn': 'Change Password', 'danger-zone-title': 'Danger Zone', 'delete-account-warning': 'Once you delete your account, there is no going back.',
+                'delete-account-btn': 'Delete Account', 'edit-profile-title': 'Edit Profile', 'change-password-title': 'Change Password', 'old-password-label': 'Old Password',
+                'new-password-label': 'New Password', 'profile-updated-success': 'Profile updated successfully.', 'password-updated-success': 'Password updated successfully.',
+                'old-password-incorrect': 'Old password is incorrect.', 'confirm-delete-account': 'Are you absolutely sure? Your account and all data will be permanently deleted.',
+                'password-weak-error': 'Password is too weak. It must be at least medium strength.',
+                'users-title': 'User Management', 'status-header': 'Account Status', 'suspend-btn': 'Suspend', 'activate-btn': 'Activate', 'user-suspended-success': 'User account has been suspended.', 'user-activated-success': 'User account has been activated.', 'user-deleted-success': 'User deleted successfully.', 'account-suspended-error': 'Your account has been suspended. Please contact the administrator.',
+                'edit-user-title': 'Edit User Information', 'change-user-password-title': "Change User's Password", 'user-profile-updated-success': "User's profile updated successfully.", 'user-password-updated-success': "User's password updated successfully.",
+                'add-user-btn': 'Add User', 'add-user-title': 'Add New User', 'user-added-success': 'User added successfully.',
+                'trial-welcome': 'Welcome! You are now on a 30-day free trial.', 'trial-expired-title': 'Trial Period Expired', 'trial-expired-message': 'Your free trial has ended. To purchase a license and continue using the software, please contact us.', 'contact-us-btn': 'Contact Us',
+                'license-status-header': 'License Status', 'expires-on-header': 'Expires On', 'manage-license-btn': 'Manage License', 'manage-license-title': "Manage User's License",
+                'license-status-trial': 'Trial', 'license-status-active': 'Active', 'license-status-expired': 'Expired', 'days-remaining': '{days} days remaining', 'license-unlimited': 'Unlimited',
+                'extend-trial-title': 'Extend Trial Period', 'extend-btn': 'Extend', 'full-license-title': 'Full License', 'full-license-desc': 'Remove all trial limitations.', 'activate-license-btn': 'Activate',
+                'license-updated-success': 'User license updated successfully.', 'reset-trial-title': 'Reset Trial', 'reset-trial-desc': 'Revert the user to a new 30-day trial period.', 'reset-trial-btn': 'Reset',
+                'license-info-title': 'License Information', 'license-key-label': 'License Key', 'license-start-date-label': 'Start Date', 'license-end-date-label': 'End Date',
+                'generate-license-key-title': 'Generate New Activation Key', 'generate-key-btn': 'Generate', 'copy-key-btn': 'Copy', 'assign-key-btn': 'Assign to User', 'key-copied-success': 'Key copied to clipboard!',
+                'trial-banner-message': 'You are using the trial version. You have {days} days remaining. Your account will be restricted afterward.', 'license-status-permanent': 'Permanent', 'contact-admin-btn': 'Contact Support',
+                'activity-log-title': 'Activity Log', 'activity-log-header-user': 'User', 'activity-log-header-action': 'Action', 'activity-log-header-details': 'Details', 'activity-log-header-timestamp': 'Timestamp',
+                'log-login': 'Logged In', 'log-logout': 'Logged Out', 'log-create-record': 'Created Record', 'log-update-record': 'Updated Record', 'log-delete-record': 'Deleted Record',
+                'log-delete-all': 'Deleted All Records', 'log-import': 'Imported Data', 'log-suspend-user': 'Suspended User', 'log-activate-user': 'Activated User', 'log-delete-user': 'Deleted User',
+                'activate-license-title': 'Activate Your License', 'activate-license-prompt': 'If you have an activation key, enter it here to activate the full version.', 'activate-btn': 'Activate', 'invalid-license-key': 'The activation key is invalid or already in use.',
+                'license-activated-success': 'License activated successfully!', 'log-activate-license': 'Activated License',
+            }
+        };
+
+        const DOMElements = {
+            loginContainer: document.getElementById('login-container'), dashboardContainer: document.getElementById('dashboard-container'),
+            loginForm: document.getElementById('login-form'), usernameInput: document.getElementById('username'),
+            passwordInput: document.getElementById('password'), togglePasswordBtn: document.getElementById('toggle-password'),
+            eyeIcon: document.getElementById('eye-icon'), eyeOffIcon: document.getElementById('eye-off-icon'),
+            rememberMeCheckbox: document.getElementById('remember-me'), loginBtn: document.getElementById('login-btn'),
+            openRegisterModalBtn: document.getElementById('open-register-modal-btn'), logoutBtn: document.getElementById('logout-btn'),
+            languageSwitcher: document.getElementById('language-switcher'), themeToggle: document.getElementById('theme-toggle'),
+            themeIcons: { dark: document.getElementById('theme-toggle-dark-icon'), light: document.getElementById('theme-toggle-light-icon') },
+            welcomeMessage: document.getElementById('welcome-message'), kpiContainer: document.getElementById('kpi-container'),
+            openAddModalBtn: document.getElementById('open-add-modal-btn'), recordModal: document.getElementById('record-modal'),
+            modalTitle: document.getElementById('modal-title'), dataEntryForm: document.getElementById('data-entry-form'),
+            dataEntryFields: document.getElementById('data-entry-fields'), saveBtn: document.getElementById('save-btn'),
+            clearBtn: document.getElementById('clear-btn'), customizeBtn: document.getElementById('customize-btn'),
+            exportBtn: document.getElementById('export-btn'), exportFormatSelect: document.getElementById('export-format'),
+            clearAllBtn: document.getElementById('clear-all-btn'), importBtn: document.getElementById('import-btn'),
+            importFileInput: document.getElementById('import-file-input'), importProgressContainer: document.getElementById('import-progress-container'),
+            importProgressBar: document.getElementById('import-progress-bar'), searchInput: document.getElementById('search-input'),
+            searchCategory: document.getElementById('search-category'), tableHeaders: document.getElementById('table-headers'),
+            dataTableBody: document.getElementById('data-table-body'), tableFooter: document.getElementById('table-footer'),
+            paginationControls: document.getElementById('pagination-controls'), registerModal: document.getElementById('register-modal'),
+            registerForm: document.getElementById('register-form'), registerPasswordInput: document.getElementById('register-password'),
+            passwordStrengthBar: document.getElementById('password-strength-bar'), passwordStrengthText: document.getElementById('password-strength-text'),
+            customizeModal: document.getElementById('customize-modal'), labelsContainer: document.getElementById('labels-container'),
+            modalUpdateLabelsBtn: document.getElementById('modal-update-labels-btn'), addFieldBtn: document.getElementById('add-field-btn'),
+            resetFieldsBtn: document.getElementById('reset-fields-btn'), alertModal: document.getElementById('alert-modal'),
+            alertMessage: document.getElementById('alert-message'), closeAlertBtn: document.getElementById('close-alert-btn'),
+            confirmModal: document.getElementById('confirm-modal'), confirmMessage: document.getElementById('confirm-message'),
+            confirmYesBtn: document.getElementById('confirm-yes'), confirmNoBtn: document.getElementById('confirm-no'),
+            licenseModal: document.getElementById('license-modal'), closeLicenseBtn: document.getElementById('close-license-btn'),
+            reportModal: document.getElementById('report-modal'), openReportModalBtn: document.getElementById('open-report-modal-btn'),
+            reportBuilderUi: document.getElementById('report-builder-ui'), reportContentContainer: document.getElementById('report-content-container'),
+            generateReportBtn: document.getElementById('generate-report-btn'), reportFiltersContainer: document.getElementById('report-filters-container'),
+            addFilterBtn: document.getElementById('add-filter-btn'), chartTypeSelect: document.getElementById('chart-type'),
+            chartCategorySelect: document.getElementById('chart-category-select'), chartValueSelect: document.getElementById('chart-value-select'),
+            reportStats: document.getElementById('report-stats'), specialtyChartCanvas: document.getElementById('specialty-chart'),
+            printBtn: document.getElementById('print-btn'), downloadPngBtn: document.getElementById('download-png-btn'),
+            downloadPdfBtn: document.getElementById('download-pdf-btn'), reportTitlePrint: document.getElementById('report-title-print'),
+            loadingIndicator: document.getElementById('loading-indicator'), toastContainer: document.getElementById('toast-container'),
+            pageDashboard: document.getElementById('page-dashboard'), pageProfile: document.getElementById('page-profile'),
+            pageUsers: document.getElementById('page-users'), pageActivityLog: document.getElementById('page-activity-log'),
+            navDashboard: document.getElementById('nav-dashboard'), navProfile: document.getElementById('nav-profile'),
+            navUsersLi: document.getElementById('nav-users-li'), navUsers: document.getElementById('nav-users'),
+            navActivityLi: document.getElementById('nav-activity-li'), navActivity: document.getElementById('nav-activity'),
+            activityLogTableHeaders: document.getElementById('activity-log-table-headers'), activityLogTableBody: document.getElementById('activity-log-table-body'),
+            profileName: document.getElementById('profile-name'), profileUsername: document.getElementById('profile-username'),
+            profileEmail: document.getElementById('profile-email'), openChangePasswordModalBtn: document.getElementById('open-change-password-modal-btn'),
+            deleteAccountBtn: document.getElementById('delete-account-btn'), dangerZoneCard: document.getElementById('danger-zone-card'),
+            securityCard: document.getElementById('security-card'), licenseInfoCard: document.getElementById('license-info-card'),
+            licenseDetailsContainer: document.getElementById('license-details-container'), trialBanner: document.getElementById('trial-banner'),
+            trialBannerMessage: document.getElementById('trial-banner-message'), closeTrialBannerBtn: document.getElementById('close-trial-banner'),
+            editUserModal: document.getElementById('edit-user-modal'), editUserForm: document.getElementById('edit-user-form'),
+            changePasswordModal: document.getElementById('change-password-modal'), changePasswordForm: document.getElementById('change-password-form'),
+            adminChangePasswordModal: document.getElementById('admin-change-password-modal'), adminChangePasswordForm: document.getElementById('admin-change-password-form'),
+            usersTableHeaders: document.getElementById('users-table-headers'), usersTableBody: document.getElementById('users-table-body'),
+            openAddUserModalBtn: document.getElementById('open-add-user-modal-btn'), sidebar: document.getElementById('sidebar'),
+            mainContent: document.getElementById('main-content'), sidebarCollapseBtn: document.getElementById('sidebar-collapse-btn'),
+            sidebarExpandBtn: document.getElementById('sidebar-expand-btn'), breadcrumbContainer: document.getElementById('breadcrumb-container'),
+            manageLicenseModal: document.getElementById('manage-license-modal'), licenseUsername: document.getElementById('license-username'),
+            licenseCurrentStatus: document.getElementById('license-current-status'), licenseExpiryInfoContainer: document.getElementById('license-expiry-info-container'),
+            licenseExpiryInfo: document.getElementById('license-expiry-info'), extendDaysInput: document.getElementById('extend-days'),
+            extendTrialBtn: document.getElementById('extend-trial-btn'), generatedLicenseKeyInput: document.getElementById('generated-license-key'),
+            generateKeyBtn: document.getElementById('generate-key-btn'), copyKeyBtn: document.getElementById('copy-key-btn'),
+            assignKeyBtn: document.getElementById('assign-key-btn'), resetTrialBtn: document.getElementById('reset-trial-btn'),
+            userLicenseActivationSection: document.getElementById('user-license-activation-section'), userLicenseKeyInput: document.getElementById('user-license-key-input'),
+            userActivateLicenseBtn: document.getElementById('user-activate-license-btn'),
+        };
+
+        // Utility functions
+        const base64Encode = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) { return String.fromCharCode('0x' + p1); }));
+        const base64Decode = (str) => {
+            try {
+                return decodeURIComponent(atob(str).split('').map(c =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            } catch (e) {
+                console.error("Failed to decode Base64 string:", e);
+                return null;
+            }
+        };
+
+        const validateForm = () => {
+            let isValid = true;
+            const inputs = DOMElements.dataEntryForm.querySelectorAll('.form-input[required]');
+            inputs.forEach(input => {
+                const errorSpan = document.querySelector(`[data-validation-for="${input.id}"]`);
+                if (!input.value.trim()) {
+                    input.classList.add('is-invalid');
+                    errorSpan.textContent = translations[F.state.currentLang]['validation-required'];
+                    errorSpan.classList.remove('hidden');
+                    isValid = false;
+                } else if (input.type === 'url' && !input.value.startsWith('http')) {
+                    input.classList.add('is-invalid');
+                    errorSpan.textContent = translations[F.state.currentLang]['validation-url'];
+                    errorSpan.classList.remove('hidden');
+                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                    errorSpan.classList.add('hidden');
+                }
+            });
+            return isValid;
+        };
+
+        const sanitizeHTML = (str) => {
+            if (str === null || str === undefined) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        };
+        const showLoading = () => DOMElements.loadingIndicator.style.display = 'flex';
+        const hideLoading = () => DOMElements.loadingIndicator.style.display = 'none';
+
+        const showToast = (messageKey, type = 'success', replacements = {}) => {
+            let message = translations[F.state.currentLang][messageKey] || messageKey;
+            for (const key in replacements) { message = message.replace(`{${key}}`, replacements[key]); }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            DOMElements.toastContainer.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 4000);
+        };
+        const showModal = (modalElement) => modalElement.style.display = 'block';
+        const hideModal = (modalElement) => modalElement.style.display = 'none';
+        const showAlert = (messageKey) => {
+            DOMElements.alertMessage.textContent = translations[F.state.currentLang][messageKey];
+            showModal(DOMElements.alertModal);
+        };
+        const showLicenseModal = () => showModal(DOMElements.licenseModal);
+        const showConfirm = (messageKey, onConfirm) => {
+            DOMElements.confirmMessage.textContent = translations[F.state.currentLang][messageKey];
+            showModal(DOMElements.confirmModal);
+            const confirmHandler = () => { onConfirm(); cleanup(); };
+            const cancelHandler = () => cleanup();
+            const cleanup = () => {
+                hideModal(DOMElements.confirmModal);
+                DOMElements.confirmYesBtn.removeEventListener('click', confirmHandler);
+                DOMElements.confirmNoBtn.removeEventListener('click', cancelHandler);
+            };
+            DOMElements.confirmYesBtn.addEventListener('click', confirmHandler, { once: true });
+            DOMElements.confirmNoBtn.addEventListener('click', cancelHandler, { once: true });
+        };
+        
+        const logActivity = (actionKey, details = '') => {
+            if (!F.state.currentUser) return;
+            const log = {
+                user: F.state.currentUser,
+                actionKey: actionKey,
+                details: details,
+                timestamp: new Date().toISOString()
+            };
+            let activityLog = JSON.parse(localStorage.getItem('userActivityLog') || '[]');
+            activityLog.unshift(log);
+            if (activityLog.length > 200) { 
+                activityLog = activityLog.slice(0, 200);
+            }
+            localStorage.setItem('userActivityLog', JSON.stringify(activityLog));
+        };
+
+
+        // Data persistence and state management
+        const saveDataToLocalStorage = () => {
+            if (!F.state.currentUser) return;
+            const appStateToSave = {
+                allData: F.state.allData, dynamicFields: F.state.dynamicFields, rowsPerPage: F.state.rowsPerPage,
+                sortColumn: F.state.sortColumn, sortDirection: F.state.sortDirection,
+            };
+            localStorage.setItem(`appState_${F.state.currentUser}`, base64Encode(JSON.stringify(appStateToSave)));
+        };
+
+        const loadDataFromLocalStorage = () => {
+            if (!F.state.currentUser) return;
+            const storedData = localStorage.getItem(`appState_${F.state.currentUser}`);
+            if (storedData) {
+                try {
+                    const decodedData = base64Decode(storedData);
+                    if (decodedData) {
+                        const storedState = JSON.parse(decodedData);
+                        F.state.allData = storedState.allData || [];
+                        F.state.dynamicFields = storedState.dynamicFields && storedState.dynamicFields.length > 0 ? storedState.dynamicFields : JSON.parse(JSON.stringify(defaultFields));
+                        F.state.rowsPerPage = storedState.rowsPerPage || 10;
+                        F.state.sortColumn = storedState.sortColumn || 'id';
+                        F.state.sortDirection = storedState.sortDirection || 'asc';
+                    } else {
+                        console.error("Failed to decode data from localStorage. Data may be corrupted. Resetting...");
+                        F.state.allData = [];
+                        F.state.dynamicFields = JSON.parse(JSON.stringify(defaultFields));
+                    }
+                } catch (e) {
+                    console.error("Failed to parse data from localStorage, resetting...", e);
+                    F.state.allData = [];
+                    F.state.dynamicFields = JSON.parse(JSON.stringify(defaultFields));
+                }
+            } else {
+                F.state.allData = [];
+                F.state.dynamicFields = JSON.parse(JSON.stringify(defaultFields));
+            }
+            F.state.filteredData = [...F.state.allData];
+        };
+
+        const getNextId = () => {
+            if (F.state.allData.length === 0) return 1;
+            return Math.max(...F.state.allData.map(item => parseInt(item.id) || 0)) + 1;
+        };
+
+        // UI Rendering Functions
+        const renderAll = () => {
+            if (!F.state.isLoggedIn) return;
+            document.title = translations[F.state.currentLang]['dashboard-title'];
+            DOMElements.welcomeMessage.textContent = translations[F.state.currentLang]['welcome-user'].replace('{user}', F.state.currentUserName || F.state.currentUser);
+            renderDashboardKPIs();
+            renderTableHeaders();
+            renderTable();
+            renderSearchCategories();
+            renderTrialWarningBanner();
+        };
+
+        const updateUI = () => {
+            document.documentElement.lang = F.state.currentLang;
+            document.documentElement.dir = F.state.currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.body.style.fontFamily = F.state.currentLang === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif";
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.getAttribute('data-lang-key');
+                if (translations[F.state.currentLang] && translations[F.state.currentLang][key]) {
+                     el.textContent = translations[F.state.currentLang][key];
+                }
+                if (el.tagName === 'A' || el.tagName === 'BUTTON') {
+                    if (translations[F.state.currentLang] && translations[F.state.currentLang][key]) {
+                        el.title = translations[F.state.currentLang][key];
+                    }
+                }
+            });
+            DOMElements.searchInput.placeholder = translations[F.state.currentLang]['placeholder-text'].replace('{label}', translations[F.state.currentLang]['all-fields']);
+            renderAll();
+        };
+        const applyTheme = (theme) => {
+            if (theme === 'dark') { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); }
+            DOMElements.themeIcons.light.classList.toggle('hidden', theme !== 'dark');
+            DOMElements.themeIcons.dark.classList.toggle('hidden', theme === 'dark');
+        };
+        const toggleSidebar = () => {
+            DOMElements.sidebar.classList.toggle('collapsed');
+            DOMElements.mainContent.classList.toggle('sidebar-collapsed');
+            const isCollapsed = DOMElements.sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarState', isCollapsed ? 'collapsed' : 'expanded');
+        };
+        const showPage = (pageName) => {
+            if ((pageName === 'users' || pageName === 'activity-log') && !F.state.isAdmin) { pageName = 'dashboard'; }
+            F.state.currentPage = pageName;
+            DOMElements.pageDashboard.style.display = 'none';
+            DOMElements.pageProfile.style.display = 'none';
+            DOMElements.pageUsers.style.display = 'none';
+            DOMElements.pageActivityLog.style.display = 'none';
+            DOMElements.navDashboard.classList.remove('active');
+            DOMElements.navProfile.classList.remove('active');
+            DOMElements.navUsers.classList.remove('active');
+            DOMElements.navActivity.classList.remove('active');
+            renderBreadcrumbs();
+            if (pageName === 'dashboard') {
+                DOMElements.pageDashboard.style.display = 'block'; DOMElements.navDashboard.classList.add('active');
+            } else if (pageName === 'profile') {
+                DOMElements.pageProfile.style.display = 'block'; DOMElements.navProfile.classList.add('active'); renderProfilePage();
+            } else if (pageName === 'users') {
+                DOMElements.pageUsers.style.display = 'block'; DOMElements.navUsers.classList.add('active'); renderUsersPage();
+            } else if (pageName === 'activity-log') {
+                DOMElements.pageActivityLog.style.display = 'block'; DOMElements.navActivity.classList.add('active'); renderActivityLogPage();
+            }
+        };
+        const renderBreadcrumbs = () => {
+            const lang = F.state.currentLang;
+            const dashboardText = translations[lang]['dashboard-title'];
+            let html = `<a href="#" id="breadcrumb-dashboard" class="text-blue-600 hover:underline">${sanitizeHTML(dashboardText)}</a>`;
+            if (F.state.currentPage === 'profile') {
+                const profileText = translations[lang]['profile-title'];
+                html += ` / <span>${sanitizeHTML(profileText)}</span>`;
+            } else if (F.state.currentPage === 'users') {
+                const usersText = translations[lang]['users-title'];
+                html += ` / <span>${sanitizeHTML(usersText)}</span>`;
+            } else if (F.state.currentPage === 'activity-log') {
+                const activityText = translations[lang]['activity-log-title'];
+                html += ` / <span>${sanitizeHTML(activityText)}</span>`;
+            }
+            DOMElements.breadcrumbContainer.innerHTML = html;
+        };
+        const renderInputFields = () => {
+            DOMElements.dataEntryFields.innerHTML = '';
+            F.state.dynamicFields.forEach(field => {
+                const labelText = translations[F.state.currentLang][`${field.id}-label`] || field.id;
+                const placeholderText = translations[F.state.currentLang]['placeholder-text'].replace('{label}', labelText);
+                const fieldWrapper = document.createElement('div');
+                const label = document.createElement('label');
+                label.htmlFor = field.id; label.className = 'mb-2 font-semibold block text-sm';
+                label.textContent = labelText;
+                if (field.required) {
+                    const requiredSpan = document.createElement('span');
+                    requiredSpan.className = 'text-red-500'; requiredSpan.textContent = ' *';
+                    label.appendChild(requiredSpan);
+                }
+                const input = document.createElement('input');
+                input.type = field.type; input.id = field.id; input.name = field.id;
+                input.className = 'form-input'; input.placeholder = placeholderText;
+                if (field.type === 'number') input.step = field.step || 'any';
+                if (field.required) input.required = true;
+                const errorSpan = document.createElement('span');
+                errorSpan.className = 'text-red-500 text-sm mt-1 hidden';
+                errorSpan.dataset.validationFor = field.id;
+                fieldWrapper.appendChild(label); fieldWrapper.appendChild(input);
+                fieldWrapper.appendChild(errorSpan); DOMElements.dataEntryFields.appendChild(fieldWrapper);
+            });
+        };
+        const renderTableHeaders = () => {
+            const tr = document.createElement('tr');
+            const allHeaders = [
+                { id: 'id', labelKey: 'id-header' },
+                ...F.state.dynamicFields.map(f => ({ id: f.id, labelKey: `${f.id}-label` })),
+                { id: 'creationDate', labelKey: 'creationDate-label' }
+            ];
+            allHeaders.forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'px-4 py-3 text-right font-medium sortable cursor-pointer';
+                th.dataset.sort = header.id;
+                th.textContent = translations[F.state.currentLang][header.labelKey] || header.id;
+                const sortIconSpan = document.createElement('span');
+                sortIconSpan.className = 'sort-icon ml-1';
+                if (F.state.sortColumn === header.id) {
+                    th.classList.add('sorted');
+                    sortIconSpan.innerHTML = F.state.sortDirection === 'asc' ? '&#9650;' : '&#9660;';
+                } else { sortIconSpan.innerHTML = '&#8693;'; }
+                th.appendChild(sortIconSpan); tr.appendChild(th);
+            });
+            const actionTh = document.createElement('th');
+            actionTh.className = 'px-4 py-3 text-left font-medium';
+            actionTh.textContent = translations[F.state.currentLang]['action-header'];
+            tr.appendChild(actionTh);
+            DOMElements.tableHeaders.innerHTML = '';
+            DOMElements.tableHeaders.appendChild(tr);
+        };
+        const renderTable = () => {
+            const sortedData = [...F.state.filteredData].sort((a, b) => {
+                let valA = a[F.state.sortColumn], valB = b[F.state.sortColumn];
+                const fieldType = (F.state.dynamicFields.find(f => f.id === F.state.sortColumn) || {}).type;
+                if (F.state.sortColumn === 'creationDate') { valA = new Date(valA); valB = new Date(valB); }
+                else if (F.state.sortColumn === 'id' || fieldType === 'number') { valA = parseFloat(valA) || 0; valB = parseFloat(valB) || 0; }
+                else { valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase(); }
+                if (valA < valB) return F.state.sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return F.state.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            const startIndex = (F.state.currentPageNumber - 1) * F.state.rowsPerPage;
+            const paginatedData = sortedData.slice(startIndex, startIndex + F.state.rowsPerPage);
+            DOMElements.dataTableBody.innerHTML = '';
+            if (paginatedData.length === 0) {
+                const colspan = F.state.dynamicFields.length + 3;
+                const messageKey = F.state.allData.length === 0 ? 'no-records' : 'no-search-results';
+                DOMElements.dataTableBody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><svg class="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><p class="text-gray-500">${translations[F.state.currentLang][messageKey]}</p></div></td></tr>`;
+            } else {
+                paginatedData.forEach(item => {
+                    const row = DOMElements.dataTableBody.insertRow();
+                    row.dataset.rowId = item.id;
+                    row.insertCell().textContent = item.id;
+                    F.state.dynamicFields.forEach(field => {
+                        const cell = row.insertCell(); cell.className = 'px-4 py-3 whitespace-nowrap';
+                        const cellValue = item[field.id];
+                        if (field.type === 'url' && cellValue) {
+                            const link = document.createElement('a');
+                            link.href = cellValue; link.className = 'text-blue-600 hover:underline';
+                            link.target = '_blank'; link.rel = 'noopener noreferrer';
+                            link.textContent = 'رابط'; cell.appendChild(link);
+                        } else if (cellValue) {
+                            cell.textContent = cellValue;
+                        } else {
+                            const placeholder = document.createElement('span');
+                            placeholder.className = 'text-gray-400';
+                            placeholder.textContent = translations[F.state.currentLang]['no-data-placeholder'];
+                            cell.appendChild(placeholder);
+                        }
+                    });
+                    const dateCell = row.insertCell(); dateCell.className = 'px-4 py-3 whitespace-nowrap';
+                    dateCell.textContent = item.creationDate ? new Date(item.creationDate).toLocaleDateString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US') : 'N/A';
+                    const actionCell = row.insertCell(); actionCell.className = 'px-4 py-3 whitespace-nowrap text-left';
+                    actionCell.innerHTML = `
+                        <button class="btn btn-icon btn-secondary btn-edit" data-id="${item.id}" title="${translations[F.state.currentLang]['edit-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                        <button class="btn btn-icon btn-secondary btn-delete" data-id="${item.id}" title="${translations[F.state.currentLang]['delete-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
+                    `;
+                });
+            }
+            renderPagination(); renderTableFooter();
+        };
+        const renderTableFooter = () => {
+            const numericFields = F.state.dynamicFields.filter(f => f.type === 'number');
+            if (numericFields.length === 0 || F.state.filteredData.length === 0) { DOMElements.tableFooter.innerHTML = ''; return; }
+            let footerHTML = `<tr><td class="px-4 py-3 font-bold">${translations[F.state.currentLang]['value-sum'].replace('{field}', '')}</td>`;
+            F.state.dynamicFields.forEach(field => {
+                if (field.type === 'number') {
+                    const values = F.state.filteredData.map(item => parseFloat(item[field.id])).filter(v => !isNaN(v));
+                    const sum = values.reduce((a, b) => a + b, 0);
+                    footerHTML += `<td class="px-4 py-3 font-bold">${sum.toFixed(2)}</td>`;
+                } else {
+                    footerHTML += '<td></td>';
+                }
+            });
+            footerHTML += '<td></td><td></td></tr>';
+            DOMElements.tableFooter.innerHTML = footerHTML;
+        };
+        const renderPagination = () => {
+            const totalPages = Math.ceil(F.state.filteredData.length / F.state.rowsPerPage);
+            const rowsSelectorHTML = `<div class="flex items-center gap-2 text-sm"><label for="rows-per-page-select">${translations[F.state.currentLang]['rows-per-page']}</label><select id="rows-per-page-select" class="form-input w-20 py-1"><option value="10" ${F.state.rowsPerPage == 10 ? 'selected' : ''}>10</option><option value="25" ${F.state.rowsPerPage == 25 ? 'selected' : ''}>25</option><option value="50" ${F.state.rowsPerPage == 50 ? 'selected' : ''}>50</option></select></div>`;
+            if (totalPages <= 1) { DOMElements.paginationControls.innerHTML = rowsSelectorHTML; return; }
+            const prevDisabled = F.state.currentPageNumber === 1 ? 'disabled' : '';
+            const nextDisabled = F.state.currentPageNumber === totalPages ? 'disabled' : '';
+            DOMElements.paginationControls.innerHTML = `${rowsSelectorHTML}<div class="flex items-center gap-2"><button id="prev-page" class="btn btn-icon btn-secondary" ${prevDisabled}>&lt;</button><span class="text-sm">${translations[F.state.currentLang]['page']} ${F.state.currentPageNumber} ${translations[F.state.currentLang]['of']} ${totalPages}</span><button id="next-page" class="btn btn-icon btn-secondary" ${nextDisabled}>&gt;</button></div>`;
+        };
+        const renderSearchCategories = () => {
+            DOMElements.searchCategory.innerHTML = `<option value="all">${translations[F.state.currentLang]['all-fields']}</option>`;
+            F.state.dynamicFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.id;
+                option.textContent = translations[F.state.currentLang][`${field.id}-label`] || field.id;
+                DOMElements.searchCategory.appendChild(option);
+            });
+        };
+        const renderCustomizeModal = () => {
+            DOMElements.labelsContainer.innerHTML = '';
+            F.state.dynamicFields.forEach((field, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-4 mb-2';
+                div.innerHTML = `
+                    <label class="w-1/4">${sanitizeHTML(field.id)}</label>
+                    <input type="text" data-field-id="${field.id}" class="form-input flex-grow" value="${sanitizeHTML(translations[F.state.currentLang][`${field.id}-label`] || '')}">
+                    <button data-delete-index="${index}" class="btn btn-icon btn-danger">&times;</button>`;
+                DOMElements.labelsContainer.appendChild(div);
+            });
+        };
+        const renderDashboardKPIs = () => {
+            const totalRecords = F.state.allData.length;
+            const prices = F.state.allData.map(item => parseFloat(item.price)).filter(p => !isNaN(p));
+            const avgPrice = prices.length ? (prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2) : 0;
+            const maxPrice = prices.length ? Math.max(...prices) : 0;
+            const uniqueSpecialties = new Set(F.state.allData.map(item => item.specialty).filter(Boolean)).size;
+            const kpis = [
+                { key: 'total-records', value: totalRecords, icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>`},
+                { key: 'avg-price', value: avgPrice, icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>` },
+                { key: 'max-price', value: maxPrice, icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>` },
+                { key: 'unique-specialties', value: uniqueSpecialties, icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>` }
+            ];
+            DOMElements.kpiContainer.innerHTML = kpis.map((kpi, index) => `
+                <div class="kpi-card card p-5 rounded-xl flex items-center gap-4" style="animation-delay: ${index * 100}ms">
+                    <div class="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full text-blue-500">${kpi.icon}</div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">${sanitizeHTML(translations[F.state.currentLang][kpi.key])}</p>
+                        <p class="text-2xl font-bold">${sanitizeHTML(String(kpi.value))}</p>
+                    </div>
+                </div>
+            `).join('');
+        };
+        const maskLicenseKey = (key) => {
+            if (!key || key.length < 19) return key;
+            return `XXXX-XXXX-XXXX-${key.slice(-4)}`;
+        };
+        const renderProfilePage = () => {
+            const users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+            const userData = users[F.state.currentUser];
+            if (userData) {
+                DOMElements.profileName.textContent = userData.name;
+                DOMElements.profileUsername.textContent = F.state.currentUser;
+                DOMElements.profileEmail.textContent = userData.email;
+                
+                const isTrial = userData.licenseType === 'trial' || userData.licenseType === 'expired';
+                DOMElements.userLicenseActivationSection.style.display = isTrial && !F.state.isAdmin ? 'block' : 'none';
+            }
+            DOMElements.securityCard.style.display = 'block';
+            DOMElements.dangerZoneCard.style.display = F.state.isAdmin ? 'none' : 'block';
+            renderLicenseInfo(userData);
+        };
+        const renderLicenseInfo = (userData) => {
+            const container = DOMElements.licenseDetailsContainer;
+            if (!userData) { container.innerHTML = ''; return; }
+            let html = '';
+            const statusKey = `license-status-${userData.licenseType || 'trial'}`;
+            const statusText = translations[F.state.currentLang][statusKey] || userData.licenseType;
+            let statusClass = '';
+            if (userData.licenseType === 'permanent') { statusClass = 'bg-purple-100 text-purple-800'; }
+            else if (userData.licenseType === 'active') { statusClass = 'bg-green-100 text-green-800'; }
+            else if (userData.licenseType === 'expired') { statusClass = 'bg-red-100 text-red-800'; }
+            else { statusClass = 'bg-yellow-100 text-yellow-800'; }
+            html += `<div><strong class="font-semibold">${translations[F.state.currentLang]['license-status-header']}:</strong> <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${statusText}</span></div>`;
+            if (userData.licenseType === 'permanent') {
+                html += `<div><strong class="font-semibold">${translations[F.state.currentLang]['license-key-label']}:</strong> <span class="font-mono">${maskLicenseKey(userData.licenseKey)}</span></div>`;
+            } else if (userData.trialEndDate) {
+                const endDate = new Date(userData.trialEndDate);
+                html += `<div><strong class="font-semibold">${translations[F.state.currentLang]['expires-on-header']}:</strong> <span>${endDate.toLocaleDateString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US')}</span></div>`;
+            }
+            container.innerHTML = html;
+        };
+        const renderTrialWarningBanner = () => {
+            const users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+            const userData = users[F.state.currentUser];
+            if (userData && userData.licenseType === 'trial' && userData.trialEndDate) {
+                const today = new Date();
+                const trialEndDate = new Date(userData.trialEndDate);
+                const daysRemaining = Math.ceil((trialEndDate - today) / (1000 * 60 * 60 * 24));
+                if (daysRemaining > 0) {
+                    DOMElements.trialBannerMessage.textContent = translations[F.state.currentLang]['trial-banner-message'].replace('{days}', daysRemaining);
+                    DOMElements.trialBanner.style.display = 'flex';
+                } else {
+                    DOMElements.trialBanner.style.display = 'none';
+                }
+            } else { DOMElements.trialBanner.style.display = 'none'; }
+        };
+        const renderUsersPage = () => {
+            const users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+            const headers = `<tr><th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['full-name-label']}</th><th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['username-label']}</th><th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['license-status-header']}</th><th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['expires-on-header']}</th><th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['status-header']}</th><th class="px-4 py-3 text-left font-medium">${translations[F.state.currentLang]['action-header']}</th></tr>`;
+            DOMElements.usersTableHeaders.innerHTML = headers;
+            let usersHTML = '';
+            for (const username in users) {
+                const user = users[username];
+                let licenseStatusText = '', licenseStatusClass = '', expiryText = '';
+                const today = new Date();
+                const trialEndDate = user.trialEndDate ? new Date(user.trialEndDate) : null;
+                if (user.licenseType === 'permanent') {
+                    licenseStatusText = translations[F.state.currentLang]['license-status-permanent'];
+                    licenseStatusClass = 'bg-purple-100 text-purple-800';
+                    expiryText = translations[F.state.currentLang]['license-unlimited'];
+                } else if (user.licenseType === 'trial' && trialEndDate) {
+                    const daysRemaining = Math.ceil((trialEndDate - today) / (1000 * 60 * 60 * 24));
+                    if (daysRemaining > 0) {
+                        licenseStatusText = translations[F.state.currentLang]['license-status-trial'];
+                        licenseStatusClass = 'bg-yellow-100 text-yellow-800';
+                        expiryText = translations[F.state.currentLang]['days-remaining'].replace('{days}', daysRemaining);
+                    } else {
+                        licenseStatusText = translations[F.state.currentLang]['license-status-expired'];
+                        licenseStatusClass = 'bg-red-100 text-red-800';
+                        expiryText = trialEndDate.toLocaleDateString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US');
+                    }
+                } else if (user.licenseType === 'expired') {
+                    licenseStatusText = translations[F.state.currentLang]['license-status-expired'];
+                    licenseStatusClass = 'bg-red-100 text-red-800';
+                    expiryText = trialEndDate ? trialEndDate.toLocaleDateString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US') : 'N/A';
+                }
+                const accountStatusClass = user.isSuspended ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+                const accountStatusText = user.isSuspended ? 'موقوف' : 'نشط';
+                const suspendButtonClass = user.isSuspended ? 'btn-success' : 'btn-warning';
+                const suspendButtonTextKey = user.isSuspended ? 'activate-btn' : 'suspend-btn';
+                const isCurrentUserAdmin = username === 'aboodi_abdo';
+                usersHTML += `
+                    <tr data-username="${sanitizeHTML(username)}">
+                        <td class="px-4 py-3">${sanitizeHTML(user.name)}</td>
+                        <td class="px-4 py-3 font-mono">${sanitizeHTML(username)}</td>
+                        <td class="px-4 py-3"><span class="px-2 py-1 text-xs font-medium rounded-full ${licenseStatusClass}">${licenseStatusText}</span></td>
+                        <td class="px-4 py-3">${expiryText}</td>
+                        <td class="px-4 py-3"><span class="px-2 py-1 text-xs font-medium rounded-full ${accountStatusClass}">${accountStatusText}</span></td>
+                        <td class="px-4 py-3 text-left space-x-1 space-x-reverse">
+                            <button class="btn btn-sm btn-secondary btn-manage-license" title="${translations[F.state.currentLang]['manage-license-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H5v-2H3v-2H1v-4a6 6 0 0110.257-4.257M15 7A2 2 0 0013 5M15 7a2 2 0 012 2M15 7a2 2 0 002-2M13 5a2 2 0 012-2M13 5a2 2 0 00-2 2" /></svg></button>
+                            <button class="btn btn-sm btn-secondary btn-edit-user" title="${translations[F.state.currentLang]['edit-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                            <button class="btn btn-sm btn-secondary btn-change-user-password" title="${translations[F.state.currentLang]['change-password-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></button>
+                            ${!isCurrentUserAdmin ? `<button class="btn btn-sm ${suspendButtonClass} btn-suspend-user">${translations[F.state.currentLang][suspendButtonTextKey]}</button>` : ''}
+                            ${!isCurrentUserAdmin ? `<button class="btn btn-sm btn-danger btn-delete-user" title="${translations[F.state.currentLang]['delete-btn']}"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }
+            DOMElements.usersTableBody.innerHTML = usersHTML;
+        };
+        const renderActivityLogPage = () => {
+            const headers = `
+                <tr>
+                    <th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['activity-log-header-timestamp']}</th>
+                    <th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['activity-log-header-user']}</th>
+                    <th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['activity-log-header-action']}</th>
+                    <th class="px-4 py-3 text-right font-medium">${translations[F.state.currentLang]['activity-log-header-details']}</th>
+                </tr>`;
+            DOMElements.activityLogTableHeaders.innerHTML = headers;
+            const activityLog = JSON.parse(localStorage.getItem('userActivityLog') || '[]');
+            let logHTML = '';
+            if (activityLog.length === 0) {
+                logHTML = `<tr><td colspan="4"><div class="empty-state"><svg class="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg><p class="text-gray-500">${translations[F.state.currentLang]['no-records']}</p></div></td></tr>`;
+            } else {
+                activityLog.forEach(log => {
+                    const actionText = translations[F.state.currentLang][log.actionKey] || log.actionKey;
+                    const logDate = new Date(log.timestamp);
+                    const formattedDate = `${logDate.toLocaleDateString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US')} ${logDate.toLocaleTimeString(F.state.currentLang === 'ar' ? 'ar-EG' : 'en-US')}`;
+                    logHTML += `
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap">${formattedDate}</td>
+                            <td class="px-4 py-3 font-mono">${sanitizeHTML(log.user)}</td>
+                            <td class="px-4 py-3">${sanitizeHTML(actionText)}</td>
+                            <td class="px-4 py-3">${sanitizeHTML(log.details)}</td>
+                        </tr>
+                    `;
+                });
+            }
+            DOMElements.activityLogTableBody.innerHTML = logHTML;
+        };
+        const handleSave = (e) => {
+            e.preventDefault();
+            if (!validateForm()) return;
+            const id = F.state.editingItemId || getNextId();
+            const newItem = { id };
+            F.state.dynamicFields.forEach(field => {
+                const input = document.getElementById(field.id);
+                if (input) newItem[field.id] = input.value.trim();
+            });
+            if (F.state.editingItemId) {
+                const index = F.state.allData.findIndex(item => item.id == F.state.editingItemId);
+                if (index !== -1) {
+                    newItem.creationDate = F.state.allData[index].creationDate;
+                    F.state.allData[index] = newItem;
+                }
+                logActivity('log-update-record', `ID: ${id}`);
+                showToast('data-updated-success');
+            } else {
+                newItem.creationDate = new Date().toISOString();
+                F.state.allData.push(newItem);
+                logActivity('log-create-record', `ID: ${id}`);
+                showToast('data-saved-success');
+            }
+            hideModal(DOMElements.recordModal); resetForm();
+            saveDataToLocalStorage(); applyFiltersAndRender();
+        };
+        const resetForm = () => {
+            F.state.editingItemId = null;
+            DOMElements.dataEntryForm.reset();
+            DOMElements.saveBtn.setAttribute('data-lang-key', 'save-btn');
+            DOMElements.modalTitle.setAttribute('data-lang-key', 'add-new-record');
+            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            document.querySelectorAll('[data-validation-for]').forEach(span => span.classList.add('hidden'));
+            updateUI();
+        };
+        const handleEdit = (id) => {
+            const itemToEdit = F.state.allData.find(item => item.id == id);
+            if (itemToEdit) {
+                resetForm();
+                F.state.dynamicFields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input) input.value = itemToEdit[field.id] || '';
+                });
+                F.state.editingItemId = id;
+                DOMElements.saveBtn.setAttribute('data-lang-key', 'update-btn');
+                DOMElements.modalTitle.setAttribute('data-lang-key', 'update-btn');
+                updateUI(); showModal(DOMElements.recordModal);
+            }
+        };
+        const handleDelete = (id) => {
+            showConfirm('confirm-delete-record', () => {
+                F.state.allData = F.state.allData.filter(item => item.id != id);
+                if (F.state.editingItemId == id) resetForm();
+                logActivity('log-delete-record', `ID: ${id}`);
+                saveDataToLocalStorage(); applyFiltersAndRender();
+                showToast('record-deleted-success', 'success');
+            });
+        };
+        const applyFiltersAndRender = () => {
+            const query = DOMElements.searchInput.value.toLowerCase().trim();
+            const category = DOMElements.searchCategory.value;
+            F.state.filteredData = F.state.allData.filter(item => {
+                if (!query) return true;
+                if (category === 'all') { return Object.values(item).some(val => String(val).toLowerCase().includes(query)); }
+                return String(item[category] || '').toLowerCase().includes(query);
+            });
+            F.state.currentPageNumber = 1;
+            renderTable(); renderDashboardKPIs();
+        };
+        const init = () => {
+            const savedLang = localStorage.getItem('lang') || 'ar';
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const savedSidebarState = localStorage.getItem('sidebarState');
+            F.state.currentLang = savedLang;
+            applyTheme(savedTheme);
+            if (savedSidebarState === 'collapsed') { toggleSidebar(); }
+            const loggedInUserJSON = localStorage.getItem('loggedInUser') || sessionStorage.getItem('loggedInUser');
+            if (loggedInUserJSON) {
+                const loggedInUser = JSON.parse(loggedInUserJSON);
+                F.state.isLoggedIn = true; F.state.currentUser = loggedInUser.username;
+                F.state.currentUserName = loggedInUser.name; F.state.isAdmin = F.state.currentUser === 'aboodi_abdo';
+                showDashboard();
+            } else { showLogin(); }
+            setupGlobalEventListeners();
+        };
+        const showLogin = () => {
+            DOMElements.loginContainer.style.display = 'flex'; DOMElements.dashboardContainer.style.display = 'none';
+            setupLoginEventListeners(); updateUI();
+        };
+        const showDashboard = () => {
+            DOMElements.loginContainer.style.display = 'none'; DOMElements.dashboardContainer.style.display = 'flex';
+            DOMElements.languageSwitcher.innerHTML = `<option value="ar">العربية</option><option value="en">English</option>`;
+            DOMElements.exportFormatSelect.innerHTML = `<option value="xlsx">XLSX</option><option value="csv">CSV</option>`;
+            DOMElements.languageSwitcher.value = F.state.currentLang;
+            loadDataFromLocalStorage(); setupDashboardEventListeners();
+            DOMElements.navUsersLi.style.display = F.state.isAdmin ? 'block' : 'none';
+            DOMElements.navActivityLi.style.display = F.state.isAdmin ? 'block' : 'none';
+            showPage('dashboard'); updateUI();
+        };
+        const setupGlobalEventListeners = () => {
+            document.addEventListener('click', (e) => {
+                if (e.target.matches('.close-btn')) { hideModal(document.getElementById(e.target.dataset.modalId)); }
+                if (e.target.id === 'breadcrumb-dashboard') { e.preventDefault(); showPage('dashboard'); }
+            });
+            DOMElements.closeAlertBtn.addEventListener('click', () => hideModal(DOMElements.alertModal));
+            DOMElements.closeLicenseBtn.addEventListener('click', () => hideModal(DOMElements.licenseModal));
+            DOMElements.closeTrialBannerBtn.addEventListener('click', () => DOMElements.trialBanner.style.display = 'none');
+        };
+        const setupLoginEventListeners = () => {
+            const initAdmin = () => {
+                let users;
+                try {
+                    const usersString = localStorage.getItem('users');
+                    users = usersString ? JSON.parse(base64Decode(usersString)) : {};
+                } catch (e) {
+                    users = {};
+                }
+                const adminUser = 'aboodi_abdo';
+                if (!users[adminUser]) {
+                    users[adminUser] = {
+                        name: 'AbdulRhman AbdulGhaffar', email: 'abdomail001@gmail.com', password: base64Encode('AbdulRhman#2030@#'),
+                        isSuspended: false, licenseType: 'permanent',
+                    };
+                    localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                }
+            };
+            initAdmin();
+            const updateUserLicenseStatus = (username) => {
+                let users;
+                try {
+                    const usersString = localStorage.getItem('users');
+                    users = usersString ? JSON.parse(base64Decode(usersString)) : {};
+                } catch (e) {
+                    users = {};
+                }
+                const userData = users[username];
+                if (userData && userData.licenseType === 'trial' && userData.trialEndDate) {
+                    if (new Date() > new Date(userData.trialEndDate)) {
+                        userData.licenseType = 'expired'; users[username] = userData;
+                        localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                        return 'expired';
+                    }
+                }
+                return userData ? userData.licenseType : null;
+            };
+            DOMElements.loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const btnText = DOMElements.loginBtn.querySelector('.btn-text');
+                const btnSpinner = DOMElements.loginBtn.querySelector('.btn-spinner');
+                btnText.classList.add('hidden'); btnSpinner.classList.remove('hidden');
+                DOMElements.loginBtn.disabled = true;
+                const resetLoginButton = () => { btnText.classList.remove('hidden'); btnSpinner.classList.add('hidden'); DOMElements.loginBtn.disabled = false; };
+                setTimeout(() => {
+                    let users;
+                    try {
+                        const usersString = localStorage.getItem('users');
+                        users = usersString ? JSON.parse(base64Decode(usersString)) : {};
+                    } catch (e) {
+                        users = {};
+                    }
+                    const username = DOMElements.usernameInput.value;
+                    const password = DOMElements.passwordInput.value;
+                    updateUserLicenseStatus(username);
+                    const userData = users[username];
+                    if (userData && base64Decode(userData.password) === password) {
+                        if (userData.isSuspended && username !== 'aboodi_abdo') {
+                            showAlert('account-suspended-error');
+                            resetLoginButton();
+                            return;
+                        }
+                        if (userData.licenseType === 'expired') { showLicenseModal(); resetLoginButton(); return; }
+                        const user = { username: username, name: userData.name };
+                        const storage = DOMElements.rememberMeCheckbox.checked ? localStorage : sessionStorage;
+                        storage.setItem('loggedInUser', JSON.stringify(user));
+                        F.state.isLoggedIn = true; F.state.currentUser = user.username; F.state.currentUserName = user.name;
+                        F.state.isAdmin = (user.username === 'aboodi_abdo');
+                        logActivity('log-login');
+                        showDashboard();
+                        if (userData.firstLogin) {
+                            showAlert('trial-welcome');
+                            users[username].firstLogin = false;
+                            localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                        }
+                    } else { showAlert('login-error'); resetLoginButton(); }
+                }, 100);
+            });
+            DOMElements.openRegisterModalBtn.addEventListener('click', () => {
+                DOMElements.registerForm.reset();
+                DOMElements.registerModal.querySelector('#register-modal-title').setAttribute('data-lang-key', 'register-title');
+                showModal(DOMElements.registerModal);
+            });
+            let passwordScore = 0;
+            DOMElements.registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                const name = DOMElements.registerForm.querySelector('#register-name').value;
+                const email = DOMElements.registerForm.querySelector('#register-email').value;
+                const username = DOMElements.registerForm.querySelector('#register-username').value;
+                const password = DOMElements.registerPasswordInput.value;
+                const confirmPassword = DOMElements.registerForm.querySelector('#register-password-confirm').value;
+                if (!name || !email || !username || !password) { showAlert('validation-required'); return; }
+                if (password !== confirmPassword) { showAlert('password-mismatch'); return; }
+                if (users[username]) { showAlert('user-exists-error'); return; }
+                if (passwordScore < 2) { showAlert('password-weak-error'); return; }
+                const trialEndDate = new Date(); trialEndDate.setDate(trialEndDate.getDate() + 30);
+                users[username] = {
+                    password: base64Encode(password), name: name, email: email, isSuspended: false, licenseType: 'trial',
+                    trialEndDate: trialEndDate.toISOString(), firstLogin: true
+                };
+                localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                showToast(F.state.isAdmin ? 'user-added-success' : 'register-success');
+                hideModal(DOMElements.registerModal);
+                if (F.state.isAdmin) {
+                    logActivity('log-create-user', `Username: ${username}`);
+                    renderUsersPage();
+                }
+            });
+            DOMElements.registerPasswordInput.addEventListener('input', (e) => {
+                const pass = e.target.value; let score = 0;
+                if (pass.length > 8) score++; if (/[A-Z]/.test(pass)) score++;
+                if (/[0-9]/.test(pass)) score++; if (/[^A-Za-z0-9]/.test(pass)) score++;
+                passwordScore = score;
+                let strength = 'password-weak'; let color = 'bg-red-500'; let width = '25%';
+                if (score >= 2) { strength = 'password-medium'; color = 'bg-yellow-500'; width = '60%'; }
+                if (score >= 4) { strength = 'password-strong'; color = 'bg-green-500'; width = '100%'; }
+                DOMElements.passwordStrengthBar.className = `h-1.5 rounded-full transition-all ${color}`;
+                DOMElements.passwordStrengthBar.style.width = width;
+                DOMElements.passwordStrengthText.textContent = translations[F.state.currentLang][strength];
+            });
+            DOMElements.togglePasswordBtn.addEventListener('click', () => {
+                const isPassword = DOMElements.passwordInput.type === 'password';
+                DOMElements.passwordInput.type = isPassword ? 'text' : 'password';
+                DOMElements.eyeIcon.classList.toggle('hidden', isPassword);
+                DOMElements.eyeOffIcon.classList.toggle('hidden', !isPassword);
+            });
+        };
+        const setupDashboardEventListeners = () => {
+            DOMElements.navDashboard.addEventListener('click', (e) => { e.preventDefault(); showPage('dashboard'); });
+            DOMElements.navProfile.addEventListener('click', (e) => { e.preventDefault(); showPage('profile'); });
+            DOMElements.navUsers.addEventListener('click', (e) => { e.preventDefault(); showPage('users'); });
+            DOMElements.navActivity.addEventListener('click', (e) => { e.preventDefault(); showPage('activity-log'); });
+            DOMElements.sidebarCollapseBtn.addEventListener('click', toggleSidebar);
+            DOMElements.sidebarExpandBtn.addEventListener('click', toggleSidebar);
+            DOMElements.logoutBtn.addEventListener('click', () => {
+                logActivity('log-logout');
+                localStorage.removeItem('loggedInUser'); sessionStorage.removeItem('loggedInUser');
+                Object.assign(F.state, { isLoggedIn: false, currentUser: null, currentUserName: null, isAdmin: false, allData: [], filteredData: [] });
+                const btnText = DOMElements.loginBtn.querySelector('.btn-text'); const btnSpinner = DOMElements.loginBtn.querySelector('.btn-spinner');
+                btnText.classList.remove('hidden'); btnSpinner.classList.add('hidden'); DOMElements.loginBtn.disabled = false; DOMElements.loginForm.reset(); showLogin();
+            });
+            DOMElements.languageSwitcher.addEventListener('change', (e) => {
+                F.state.currentLang = e.target.value; localStorage.setItem('lang', e.target.value); updateUI();
+            });
+            DOMElements.themeToggle.addEventListener('click', () => {
+                const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+                localStorage.setItem('theme', newTheme); applyTheme(newTheme);
+            });
+            DOMElements.openAddModalBtn.addEventListener('click', () => { resetForm(); renderInputFields(); showModal(DOMElements.recordModal); });
+            DOMElements.dataEntryForm.addEventListener('submit', handleSave); DOMElements.clearBtn.addEventListener('click', resetForm);
+            DOMElements.searchInput.addEventListener('input', applyFiltersAndRender); DOMElements.searchCategory.addEventListener('change', applyFiltersAndRender);
+            DOMElements.customizeBtn.addEventListener('click', () => { renderCustomizeModal(); showModal(DOMElements.customizeModal); });
+            DOMElements.clearAllBtn.addEventListener('click', () => {
+                showConfirm('confirm-delete-all', () => { 
+                    logActivity('log-delete-all', `Deleted ${F.state.allData.length} records.`);
+                    F.state.allData = []; 
+                    saveDataToLocalStorage(); 
+                    applyFiltersAndRender(); 
+                    showToast('all-records-deleted'); 
+                });
+            });
+            DOMElements.exportBtn.addEventListener('click', () => {
+                if (F.state.allData.length === 0) { showToast('no-data-to-export', 'error'); return; }
+                const format = DOMElements.exportFormatSelect.value;
+                const headers = ['id', ...F.state.dynamicFields.map(f => f.id), 'creationDate'];
+                const data = F.state.allData.map(item => headers.map(header => item[header] || ''));
+                const ws = XLSX.utils.aoa_to_sheet([headers.map(h => translations[F.state.currentLang][`${h}-label`] || h), ...data]);
+                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Data");
+                XLSX.writeFile(wb, `data_export.${format === 'csv' ? 'csv' : 'xlsx'}`); showToast('export-success');
+            });
+            DOMElements.importBtn.addEventListener('click', () => DOMElements.importFileInput.click());
+            DOMElements.importFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (jsonData.length < 2) {
+                            showToast('empty-file-error', 'error');
+                            return;
+                        }
+
+                        const headers = jsonData[0].map(h => String(h).toLowerCase().trim());
+                        const fieldIdMap = {};
+                        Object.keys(translations.ar).forEach(key => {
+                            if (key.endsWith('-label')) {
+                                const id = key.replace('-label', '');
+                                fieldIdMap[translations.ar[key].toLowerCase().trim()] = id;
+                            }
+                        });
+                        
+                        const mappedHeaders = headers.map(h => fieldIdMap[h] || h);
+                        
+                        let addedCount = 0;
+                        const records = jsonData.slice(1);
+
+                        records.forEach(row => {
+                            const newItem = {};
+                            let hasData = false;
+                            mappedHeaders.forEach((headerId, index) => {
+                                if (F.state.dynamicFields.some(f => f.id === headerId)) {
+                                     newItem[headerId] = row[index];
+                                     if(row[index]) hasData = true;
+                                }
+                            });
+                            
+                            if(hasData) {
+                                newItem.id = getNextId();
+                                newItem.creationDate = new Date().toISOString();
+                                F.state.allData.push(newItem);
+                                addedCount++;
+                            }
+                        });
+
+                        saveDataToLocalStorage();
+                        applyFiltersAndRender();
+                        logActivity('log-import', `Added ${addedCount} records.`);
+                        showToast('import-success', 'success', { added: addedCount, updated: 0 });
+
+                    } catch (err) {
+                        console.error("Import error:", err);
+                        showToast('file-type-error', 'error');
+                    } finally {
+                        DOMElements.importFileInput.value = '';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+            
+            DOMElements.openReportModalBtn.addEventListener('click', () => {
+                DOMElements.reportBuilderUi.style.display = 'block';
+                DOMElements.reportContentContainer.style.display = 'none';
+                if (F.state.currentChart) {
+                    F.state.currentChart.destroy();
+                }
+                
+                DOMElements.chartTypeSelect.innerHTML = `
+                    <option value="bar">${translations[F.state.currentLang]['bar-chart']}</option>
+                    <option value="pie">${translations[F.state.currentLang]['pie-chart']}</option>
+                    <option value="doughnut">${translations[F.state.currentLang]['doughnut-chart']}</option>
+                    <option value="line">${translations[F.state.currentLang]['line-chart']}</option>
+                `;
+                const categoryOptions = F.state.dynamicFields
+                    .map(f => `<option value="${f.id}">${translations[F.state.currentLang][`${f.id}-label`] || f.id}</option>`)
+                    .join('');
+                DOMElements.chartCategorySelect.innerHTML = categoryOptions;
+
+                const numericFields = F.state.dynamicFields.filter(f => f.type === 'number');
+                let valueOptions = `<option value="count">${translations[F.state.currentLang]['value-count']}</option>`;
+                valueOptions += numericFields.map(f => {
+                    const label = translations[F.state.currentLang][`${f.id}-label`] || f.id;
+                    return `<option value="sum-${f.id}">${translations[F.state.currentLang]['value-sum'].replace('{field}', label)}</option>
+                            <option value="avg-${f.id}">${translations[F.state.currentLang]['value-avg'].replace('{field}', label)}</option>`;
+                }).join('');
+                DOMElements.chartValueSelect.innerHTML = valueOptions;
+
+                showModal(DOMElements.reportModal);
+            });
+
+            DOMElements.generateReportBtn.addEventListener('click', () => {
+                const chartType = DOMElements.chartTypeSelect.value;
+                const categoryField = DOMElements.chartCategorySelect.value;
+                const valueField = DOMElements.chartValueSelect.value;
+
+                const groupedData = F.state.allData.reduce((acc, item) => {
+                    const key = item[categoryField] || 'N/A';
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(item);
+                    return acc;
+                }, {});
+
+                const labels = Object.keys(groupedData);
+                const data = labels.map(label => {
+                    const items = groupedData[label];
+                    if (valueField === 'count') return items.length;
+                    const [op, field] = valueField.split('-');
+                    const values = items.map(item => parseFloat(item[field]) || 0);
+                    if (op === 'sum') return values.reduce((a, b) => a + b, 0);
+                    if (op === 'avg') return values.reduce((a, b) => a + b, 0) / values.length;
+                    return 0;
+                });
+
+                DOMElements.reportBuilderUi.style.display = 'none';
+                DOMElements.reportContentContainer.style.display = 'block';
+                
+                const ctx = DOMElements.specialtyChartCanvas.getContext('2d');
+                if (F.state.currentChart) F.state.currentChart.destroy();
+                F.state.currentChart = new Chart(ctx, {
+                    type: chartType,
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: translations[F.state.currentLang]['analysis-chart-title'],
+                            data: data,
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+                            borderColor: '#ffffff',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            });
+
+
+            DOMElements.tableHeaders.addEventListener('click', (e) => {
+                const header = e.target.closest('[data-sort]');
+                if (header) {
+                    const column = header.dataset.sort;
+                    F.state.sortDirection = F.state.sortColumn === column && F.state.sortDirection === 'asc' ? 'desc' : 'asc';
+                    F.state.sortColumn = column; saveDataToLocalStorage(); renderTableHeaders(); renderTable();
+                }
+            });
+            DOMElements.dataTableBody.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.btn-edit'); const deleteBtn = e.target.closest('.btn-delete');
+                if (editBtn) handleEdit(editBtn.dataset.id); if (deleteBtn) handleDelete(deleteBtn.dataset.id);
+            });
+            DOMElements.paginationControls.addEventListener('change', (e) => {
+                if (e.target.id === 'rows-per-page-select') {
+                    F.state.rowsPerPage = parseInt(e.target.value, 10); F.state.currentPageNumber = 1;
+                    saveDataToLocalStorage(); renderTable();
+                }
+            });
+            DOMElements.paginationControls.addEventListener('click', (e) => {
+                const totalPages = Math.ceil(F.state.filteredData.length / F.state.rowsPerPage);
+                if (e.target.closest('#prev-page') && F.state.currentPageNumber > 1) { F.state.currentPageNumber--; renderTable(); }
+                if (e.target.closest('#next-page') && F.state.currentPageNumber < totalPages) { F.state.currentPageNumber++; renderTable(); }
+            });
+            DOMElements.addFieldBtn.addEventListener('click', () => {
+                const newId = `field_${Date.now()}`;
+                F.state.dynamicFields.push({ id: newId, type: 'text', required: false });
+                renderCustomizeModal();
+            });
+            DOMElements.resetFieldsBtn.addEventListener('click', () => {
+                showConfirm('confirm-reset-fields', () => {
+                    F.state.dynamicFields = JSON.parse(JSON.stringify(defaultFields));
+                    renderCustomizeModal(); showToast('fields-reset-success');
+                });
+            });
+            DOMElements.modalUpdateLabelsBtn.addEventListener('click', () => {
+                DOMElements.labelsContainer.querySelectorAll('input[data-field-id]').forEach(input => {
+                    const fieldId = input.dataset.fieldId;
+                    translations[F.state.currentLang][`${fieldId}-label`] = input.value;
+                });
+                saveDataToLocalStorage(); updateUI(); hideModal(DOMElements.customizeModal);
+            });
+            DOMElements.labelsContainer.addEventListener('click', (e) => {
+                if(e.target.matches('[data-delete-index]')) {
+                    const index = parseInt(e.target.dataset.deleteIndex, 10);
+                    F.state.dynamicFields.splice(index, 1); renderCustomizeModal();
+                }
+            });
+            DOMElements.openChangePasswordModalBtn.addEventListener('click', () => {
+                DOMElements.changePasswordForm.reset(); showModal(DOMElements.changePasswordModal);
+            });
+            DOMElements.changePasswordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const oldPassword = DOMElements.changePasswordForm.querySelector('#old-password').value;
+                const newPassword = DOMElements.changePasswordForm.querySelector('#new-password').value;
+                const confirmNewPassword = DOMElements.changePasswordForm.querySelector('#confirm-new-password').value;
+                let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                const userData = users[F.state.currentUser];
+                if (userData && base64Decode(userData.password) === oldPassword) {
+                    if (newPassword === confirmNewPassword) {
+                        users[F.state.currentUser].password = base64Encode(newPassword); localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                        showToast('password-updated-success'); hideModal(DOMElements.changePasswordModal);
+                    } else { showAlert('password-mismatch'); }
+                } else { showAlert('old-password-incorrect'); }
+            });
+            DOMElements.deleteAccountBtn.addEventListener('click', () => {
+                showConfirm('confirm-delete-account', () => {
+                    let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                    delete users[F.state.currentUser]; localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                    localStorage.removeItem(`appState_${F.state.currentUser}`); DOMElements.logoutBtn.click();
+                });
+            });
+            DOMElements.openAddUserModalBtn.addEventListener('click', () => {
+                DOMElements.registerModal.querySelector('#register-modal-title').setAttribute('data-lang-key', 'add-user-title');
+                DOMElements.registerForm.reset(); showModal(DOMElements.registerModal);
+            });
+            DOMElements.usersTableBody.addEventListener('click', (e) => {
+                const targetUserRow = e.target.closest('tr'); if (!targetUserRow) return;
+                const username = targetUserRow.dataset.username; F.state.editingUsername = username;
+                if (e.target.closest('.btn-suspend-user')) {
+                    let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                    const isNowSuspended = !users[username].isSuspended;
+                    users[username].isSuspended = isNowSuspended;
+                    localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                    logActivity(isNowSuspended ? 'log-suspend-user' : 'log-activate-user', `Username: ${username}`);
+                    showToast(isNowSuspended ? 'user-suspended-success' : 'user-activated-success'); 
+                    renderUsersPage();
+                }
+                if (e.target.closest('.btn-delete-user')) {
+                    showConfirm('confirm-delete-account', () => {
+                        let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                        delete users[username]; localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                        localStorage.removeItem(`appState_${username}`); 
+                        logActivity('log-delete-user', `Username: ${username}`);
+                        showToast('user-deleted-success'); 
+                        renderUsersPage();
+                    });
+                }
+                if (e.target.closest('.btn-edit-user')) {
+                    const users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                    const userData = users[username];
+                    if (userData) {
+                        DOMElements.editUserForm.querySelector('#edit-user-name').value = userData.name;
+                        DOMElements.editUserForm.querySelector('#edit-user-email').value = userData.email;
+                        DOMElements.editUserForm.querySelector('#edit-user-username').value = username;
+                    }
+                    showModal(DOMElements.editUserModal);
+                }
+                if (e.target.closest('.btn-change-user-password')) {
+                    DOMElements.adminChangePasswordForm.reset(); showModal(DOMElements.adminChangePasswordModal);
+                }
+                if(e.target.closest('.btn-manage-license')) {
+                    const users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                    const userData = users[username];
+                    if(userData) { renderManageLicenseModal(username, userData); showModal(DOMElements.manageLicenseModal); }
+                }
+            });
+            DOMElements.editUserForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newName = DOMElements.editUserForm.querySelector('#edit-user-name').value;
+                const newEmail = DOMElements.editUserForm.querySelector('#edit-user-email').value;
+                let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                if (users[F.state.editingUsername]) {
+                    users[F.state.editingUsername].name = newName; users[F.state.editingUsername].email = newEmail;
+                    localStorage.setItem('users', base64Encode(JSON.stringify(users))); showToast('user-profile-updated-success');
+                    hideModal(DOMElements.editUserModal); renderUsersPage();
+                }
+            });
+            DOMElements.adminChangePasswordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newPassword = DOMElements.adminChangePasswordForm.querySelector('#admin-new-password').value;
+                let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                if(users[F.state.editingUsername] && newPassword) {
+                    users[F.state.editingUsername].password = base64Encode(newPassword); localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                    showToast('user-password-updated-success'); hideModal(DOMElements.adminChangePasswordModal);
+                }
+            });
+            DOMElements.userActivateLicenseBtn.addEventListener('click', () => {
+                const key = DOMElements.userLicenseKeyInput.value.trim();
+                if (!key) {
+                    showAlert('validation-required');
+                    return;
+                }
+                let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+                let unassignedKeys = JSON.parse(localStorage.getItem('unassignedLicenseKeys') || '[]');
+                
+                if (unassignedKeys.includes(key)) {
+                    const currentUserData = users[F.state.currentUser];
+                    currentUserData.licenseType = 'permanent';
+                    currentUserData.licenseKey = key;
+                    currentUserData.trialEndDate = null; 
+                    
+                    const keyIndex = unassignedKeys.indexOf(key);
+                    unassignedKeys.splice(keyIndex, 1);
+                    
+                    localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                    localStorage.setItem('unassignedLicenseKeys', JSON.stringify(unassignedKeys));
+                    
+                    logActivity('log-activate-license');
+                    showToast('license-activated-success');
+                    
+                    renderProfilePage();
+                } else {
+                    showAlert('invalid-license-key');
+                }
+                DOMElements.userLicenseKeyInput.value = '';
+            });
+            DOMElements.generateKeyBtn.addEventListener('click', () => {
+                const newKey = generateLicenseKey();
+                DOMElements.generatedLicenseKeyInput.value = newKey;
+                let unassignedKeys = JSON.parse(localStorage.getItem('unassignedLicenseKeys') || '[]');
+                unassignedKeys.push(newKey);
+                localStorage.setItem('unassignedLicenseKeys', JSON.stringify(unassignedKeys));
+                showToast('key-copied-success');
+            });
+            DOMElements.copyKeyBtn.addEventListener('click', () => {
+                const key = DOMElements.generatedLicenseKeyInput.value;
+                if(key) { navigator.clipboard.writeText(key); showToast('key-copied-success'); }
+            });
+            DOMElements.extendTrialBtn.addEventListener('click', () => {
+                const days = parseInt(DOMElements.extendDaysInput.value);
+                if(isNaN(days) || days < 1) { showAlert('validation-required'); return; }
+                const endDate = new Date(); endDate.setDate(endDate.getDate() + days);
+                updateLicense(F.state.editingUsername, 'trial', endDate.toISOString(), null);
+            });
+            DOMElements.resetTrialBtn.addEventListener('click', () => {
+                const endDate = new Date(); endDate.setDate(endDate.getDate() + 30);
+                updateLicense(F.state.editingUsername, 'trial', endDate.toISOString(), null);
+            });
+        };
+        const generateLicenseKey = () => {
+            const S4 = () => (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+            return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4()).toUpperCase();
+        };
+        const renderManageLicenseModal = (username, userData) => {
+            DOMElements.licenseUsername.textContent = username;
+            DOMElements.licenseCurrentStatus.textContent = translations[F.state.currentLang][`license-status-${userData.licenseType}`] || userData.licenseType;
+            let statusClass = 'bg-blue-100 text-blue-800';
+            if(userData.licenseType === 'permanent') statusClass = 'bg-purple-100 text-purple-800';
+            else if(userData.licenseType === 'expired') statusClass = 'bg-red-100 text-red-800';
+            DOMElements.licenseCurrentStatus.className = `px-2 py-1 text-sm font-medium rounded-full ${statusClass}`;
+            if (userData.licenseType === 'trial' && userData.trialEndDate) {
+                const endDate = new Date(userData.trialEndDate);
+                const daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+                DOMElements.licenseExpiryInfo.textContent = translations[F.state.currentLang]['days-remaining'].replace('{days}', daysRemaining > 0 ? daysRemaining : 0);
+            } else if (userData.licenseType === 'permanent') {
+                DOMElements.licenseExpiryInfo.textContent = translations[F.state.currentLang]['license-unlimited'];
+            } else {
+                DOMElements.licenseExpiryInfo.textContent = translations[F.state.currentLang]['no-data-placeholder'];
+            }
+            DOMElements.generatedLicenseKeyInput.value = '';
+        };
+        const updateLicense = (username, newType, newEndDate, newKey) => {
+            let users = JSON.parse(base64Decode(localStorage.getItem('users'))) || {};
+            if(users[username]) {
+                users[username].licenseType = newType;
+                users[username].trialEndDate = newEndDate;
+                users[username].licenseKey = newKey;
+                localStorage.setItem('users', base64Encode(JSON.stringify(users)));
+                showToast('license-updated-success');
+                renderUsersPage();
+                renderManageLicenseModal(username, users[username]);
+            }
+        };
+        init();
+    });
+    </script>
+</body>
+</html>
