@@ -1,28 +1,26 @@
 # 📊 Professional Data Management Dashboard
 
-<marquee behavior="scroll" direction="left" scrollamount="7" style="color:#1E90FF; font-size:20px; font-weight:bold;">
-AbdulRhman AbdulGhaffar - Cybersecurity & Data Management Specialist
-</marquee>
+![Animated Banner](https://i.postimg.cc/3xH5wWZL/dashboard-banner.gif)
 
-[![Live Demo](https://img.shields.io/badge/Live-Dashboard-blue?style=for-the-badge)](https://abdulrhmanabdulghaffar.github.io/DBM_SYstem/){:target="_blank"}
-[![GitHub license](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE){:target="_blank"}
+[![Live Demo](https://img.shields.io/badge/Live-Dashboard-blue?style=for-the-badge)](https://abdulrhmanabdulghaffar.github.io/DBM_SYstem/)
+[![GitHub license](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Made with HTML, CSS & JS](https://img.shields.io/badge/Made%20with-HTML%2CCSS%2CJS-orange?style=for-the-badge)]()
 
 ---
 
 ## 🚀 Project Overview
 The **Professional Data Management Dashboard** is a modern, interactive, and user-friendly dashboard designed to help users **organize, visualize, and analyze data efficiently**.  
-It is perfect for **data analysts, managers, or businesses** that need quick insights and actionable information from large datasets.
+Perfect for **data analysts, managers, and businesses** looking for quick insights.
 
 ---
 
 ## ✨ Key Features
 - **Interactive Charts & Graphs** – Visualize your data in real-time  
-- **Advanced Filtering & Sorting** – Quickly find and organize the information you need  
-- **Responsive Design** – Optimized for desktop, tablet, and mobile devices  
-- **Export Functionality** – Export datasets and reports in CSV, Excel, or PDF  
-- **User-Friendly Interface** – Intuitive navigation for smooth experience  
-- **Lightweight & Fast** – Optimized for performance with clean code
+- **Advanced Filtering & Sorting** – Quickly organize the information you need  
+- **Responsive Design** – Works on desktop, tablet, and mobile devices  
+- **Export Functionality** – Export reports in CSV, Excel, or PDF  
+- **User-Friendly Interface** – Smooth and intuitive navigation  
+- **Lightweight & Fast** – Optimized for performance
 
 ---
 
@@ -30,13 +28,13 @@ It is perfect for **data analysts, managers, or businesses** that need quick ins
 - **Frontend:** HTML5, CSS3, JavaScript  
 - **Libraries & Frameworks:** Chart.js, D3.js, Bootstrap 5  
 - **Version Control & Deployment:** Git & GitHub Pages  
-- **Data Storage:** JSON / Local Storage (for demo purposes)
+- **Data Storage:** JSON / Local Storage
 
 ---
 
 ## 🖥️ Live Demo
-Check out the dashboard live here:  
-[🔗 Professional Data Management Dashboard](https://abdulrhmanabdulghaffar.github.io/DBM_SYstem/){:target="_blank"}
+Check out the live dashboard here:  
+[🔗 Click to open Professional Data Management Dashboard](https://abdulrhmanabdulghaffar.github.io/DBM_SYstem/)
 
 ---
 
